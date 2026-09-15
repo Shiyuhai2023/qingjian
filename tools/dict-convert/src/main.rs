@@ -7,6 +7,7 @@
 //! - `bigram`：纯文本语料（如 `tools/corpus/parquet_to_text.py` 转出的中文维基 CC BY-SA 4.0、LCCC 对话 MIT）→ `lm-unigram.tsv` + `lm-bigram.tsv`
 //! - `mine`：语料里分词落成连续单字的段 → `oov-candidates.tsv`（词库没收的高频词，标音后用 `lexicon --extra-words` 并入）
 //! - `phrases`：bigram 表的相邻两词 + 语料的相邻三词 → `phrases.tsv`（我的 / 不知道 这类短语层，读音由成分词拼出，同样用 `lexicon --extra-words` 并入）
+//! - `stroke`：CNS11643 全字庫「筆順資料」+ 大陆序覆盖表（`assets/stroke/prc-rules.tsv`）→ `codes/stroke.tsv`（随包笔画码表的源数据，`--verify` 抽样对照大陆笔画数）
 //! - `pack dict|lm|glossary|model`：TSV → `.qj` 容器（`dict.qj` / `lm.qj`），带名称 / 许可证 / 署名元数据，输入法与 CLI 优先加载它；
 //!   `model` 把本地整句模型的三件套目录打成一个 `model.qjm`
 //!
@@ -22,6 +23,7 @@ mod lexicon;
 mod oov_filter;
 mod pack;
 mod phrases;
+mod stroke;
 
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
@@ -126,6 +128,36 @@ fn run() -> Result<(), ConvertError> {
                 dialogue,
                 min_count,
                 max_chars,
+            },
+            &args.out_dir,
+        ),
+        Command::Stroke {
+            cns_seq,
+            cns_map,
+            cns_count,
+            max_diff,
+            filter,
+            prc_rules,
+            output,
+            verify,
+            sample,
+            stride,
+            reference,
+            whitelist,
+        } => stroke::convert(
+            &stroke::StrokeOptions {
+                cns_seq,
+                cns_map,
+                cns_count,
+                max_diff,
+                filter,
+                prc_rules,
+                output,
+                verify,
+                sample,
+                stride,
+                reference,
+                whitelist,
             },
             &args.out_dir,
         ),

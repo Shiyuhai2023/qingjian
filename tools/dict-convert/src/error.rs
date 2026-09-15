@@ -20,6 +20,13 @@ pub enum ConvertError {
     #[error(transparent)]
     Neural(#[from] qingjian_neural::NeuralError),
 
+    /// 抽样对照出现白名单之外的不符。
+    #[error("stroke verification failed: {unmatched} character(s) differ outside the whitelist")]
+    Verify {
+        /// 不符的字数。
+        unmatched: usize,
+    },
+
     /// 文件不是预期格式。
     #[error("{path}:{line}: {reason}")]
     Format {
