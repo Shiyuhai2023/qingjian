@@ -5,6 +5,7 @@
 
 mod alignment;
 mod annotation;
+mod aux_code;
 mod commit;
 mod composing;
 mod correcting;
@@ -26,12 +27,14 @@ mod translator;
 mod vocabulary;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use qingjian_dictionary::{Dictionary, Match, WordList};
+use qingjian_dictionary::{AuxCodeLookup, Dictionary, Match, WordList};
 
 pub use alignment::Alignment;
 pub use annotation::AnnotationReport;
+pub use aux_code::is_valid_aux_code_key;
 pub use commit::{LastCommit, Transition};
 pub use gloss::{FilledGloss, GlossFiller, NoGlossFiller};
 pub use input_log::{
@@ -39,7 +42,7 @@ pub use input_log::{
     NoInputLogger,
 };
 pub use learning::{Forgotten, Learner, NoLearner};
-pub use marked::{MarkedKind, MarkedSegment};
+pub use marked::{AuxSegment, MarkedKind, MarkedSegment};
 pub use mode_keys::{ModeKeys, QUESTION_PREFIX};
 pub use prediction::{
     CloudWord, NoPredictor, Prediction, PredictionKind, PredictionPolicy, PredictionRequest,
@@ -231,6 +234,16 @@ pub struct Engine {
 
     /// emoji 表，没有就不出 emoji 候选。
     emoji: Option<EmojiTable>,
+
+    /// 辅码态：`None` 是拼音态，`Some` 是辅码态（空串 = 刚敲下触发键、码段还没开始）。
+    /// 码段不进 `composition`：它与拼音分段记账、分段画（见 [`AuxSegment`]）。
+    aux_code: Option<String>,
+
+    /// 进辅码态的触发键，配置项 `[general] aux_code_key`，缺省 [`DEFAULT_AUX_CODE_KEY`]。
+    aux_code_key: char,
+
+    /// 辅码码表，壳按用户目录 `codes/` 与配置装配；空表示没装码表（辅码态筛不出任何词）。
+    aux_codes: Vec<Arc<dyn AuxCodeLookup>>,
 }
 
 /// 英文补全最多几条（`compa` → company / compare / …）。
@@ -283,6 +296,9 @@ pub const EXPLICIT_TRANSITION_WEIGHT: u32 = 2;
 
 /// 拼音短于这个字母数不联想：一两个字母的意图太模糊，白花一次请求。
 const MIN_PREDICTION_LETTERS: usize = 2;
+
+/// 辅码触发键的缺省值（`[general] aux_code_key`）。
+pub const DEFAULT_AUX_CODE_KEY: char = ';';
 
 /// 随联想请求附带的本地候选条数。
 const PREDICTION_CANDIDATE_HINTS: usize = 5;
@@ -358,6 +374,9 @@ impl Engine {
             shuangpin: None,
             zhuyin: false,
             emoji: None,
+            aux_code: None,
+            aux_code_key: DEFAULT_AUX_CODE_KEY,
+            aux_codes: Vec::new(),
         }
     }
 }

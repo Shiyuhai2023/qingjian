@@ -49,6 +49,11 @@ pub struct Args {
     #[arg(long)]
     pub extra_dict: Vec<PathBuf>,
 
+    /// 辅码码表（.qj，或 `词<TAB>码` 的 TSV），可给多个一起筛。给了之后 `kaifa;kf` 这样的输入
+    /// 按辅码态走：触发键进辅码态、之后的字母按码缩小候选
+    #[arg(long)]
+    pub aux_table: Vec<PathBuf>,
+
     /// 英文词表路径（中英混输）。缺省：data/generated/english.tsv 存在就用它，否则不启用
     #[arg(long)]
     pub english: Option<PathBuf>,

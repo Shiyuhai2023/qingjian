@@ -1,4 +1,5 @@
 mod apps;
+mod aux_code;
 mod dictionaries;
 mod general;
 mod key_combo;
@@ -24,6 +25,7 @@ pub use apps::{
     AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF, DEFAULT_ENGLISH_CANDIDATES_OFF_MACOS,
     DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS,
 };
+pub use aux_code::AuxCodeConfig;
 pub use dictionaries::{DEFAULT_DOMAINS, DictionariesConfig};
 pub use general::{DEFAULT_PAGE_KEYS, GeneralConfig, MAX_PAGE_SIZE, PAGE_KEY_OPTIONS};
 pub use key_combo::KeyCombo;
@@ -57,6 +59,9 @@ pub struct Config {
 
     /// 附加词库开关。
     pub dictionaries: DictionariesConfig,
+
+    /// 辅码码表开关。
+    pub aux_code: AuxCodeConfig,
 
     /// 按应用改行为（哪些应用里英文模式不给候选）。
     pub apps: AppsConfig,
@@ -171,6 +176,11 @@ english_candidates = true
 full_width_punctuation = true
 # 英文模式下的同一件事，中英各记一份，状态条切的是当前模式那份；只有 Windows 用
 english_full_width_punctuation = false
+# 辅码触发键：拼音打完之后敲它进辅码态，之后敲的字母按码表缩小候选范围；缺省是分号
+# 单个可见字符，字母、数字与翻页键不能当触发键；微软 / 搜狗双拼里分号先当 ing 的韵母键
+aux_code_key = ";"
+# 候选上是否显示码（与译文拼成一条注记，如「鹤 rbm · crane」）。缺省关
+aux_code_show = false
 # 双拼方案：留空为全拼；xiaohe 小鹤 / ziranma 自然码 / microsoft 微软 / sogou 搜狗
 # 开着时 v / u / i 都是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing
 shuangpin = ""
@@ -217,6 +227,11 @@ in_ing = false
 # 偏好设置「词库」页可以勾选
 domains = ["idioms"]
 # 自己导入的词库：放在配置同目录 dicts/ 下的 .qj 文件都会加载，这里列出要关掉的（文件名，不含扩展名）
+disabled = []
+
+[aux_code]
+# 辅码码表：放在配置同目录 codes/ 下的 .qj 文件都会加载，这里列出要关掉的（文件名，不含扩展名）
+# 随包的笔画表也可以在这里关掉；码表由「辅码」设置页导入，或放好文件后在这里管
 disabled = []
 
 [model]

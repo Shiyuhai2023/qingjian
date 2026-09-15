@@ -40,4 +40,9 @@ pub struct Candidate {
 
     /// 学习语言下的译文；查不到或尚未就绪时为 `None`。
     pub translation: Option<Translation>,
+
+    /// 辅码态里命中当前码段的那条码（一词多码、多张码表时取命中的第一条）；不在辅码态
+    /// 或这个词没有码时为 `None`。壳按 `[general] aux_code_show` 决定要不要显示。
+    #[serde(default)]
+    pub aux_code: Option<String>,
 }

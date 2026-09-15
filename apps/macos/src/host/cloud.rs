@@ -163,6 +163,7 @@ pub(super) fn cloud_candidate(text: String) -> Candidate {
         syllables: Vec::new(),
         reading: None,
         translation: None,
+        aux_code: None,
     }
 }
 
