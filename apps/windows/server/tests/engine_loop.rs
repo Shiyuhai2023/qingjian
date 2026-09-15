@@ -5,9 +5,10 @@ use std::sync::{Arc, Mutex};
 
 use qingjian_core::sentence::SentenceScorer;
 use qingjian_core::{Language, ShuangpinScheme};
+use qingjian_dictionary::{AuxCodeLookup, CodeTable};
 use qingjian_platform::protocol::{
-    ClientMessage, Frame, KeyEvent, KeyModifiers, KeyOutcome, PROTOCOL_VERSION, ServerMessage,
-    SessionId,
+    ClientMessage, Frame, KeyEvent, KeyModifiers, KeyOutcome, PROTOCOL_VERSION, PreeditKind,
+    ServerMessage, SessionId,
 };
 use qingjian_platform::{AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS};
 use qingjian_windows_server::dispatch::{StatusEvent, StatusSink, StatusView};
@@ -75,6 +76,45 @@ fn router_in(config: RouterConfig, app: Option<String>) -> Router {
         None
     );
     router
+}
+
+/// 装了辅码码表的 Router：`kaifa` 之后敲触发键进辅码态、`kf` 筛到 开发。
+/// 码表由 Core 的 [`AuxCodeLookup`] 注入，这里只是把它接到装配好的 Engine 上。
+fn router_with_aux(config: RouterConfig) -> Router {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let dict = root.join("assets/sample/dict.tsv");
+    let glossary = root.join("assets/sample/glossary-en.tsv");
+    let mut engine = assembly::assemble(&AssemblySpec {
+        glossary: Some((Language::English, glossary)),
+        english: Some(root.join("assets/sample/english.tsv")),
+        ..AssemblySpec::new(dict)
+    })
+    .expect("assemble engine from sample data");
+    let table: Arc<dyn AuxCodeLookup> = Arc::new(
+        CodeTable::from_pairs([
+            ("开发".to_owned(), "kf".to_owned()),
+            ("开发者".to_owned(), "kfz".to_owned()),
+            ("开".to_owned(), "kh".to_owned()),
+        ])
+        .unwrap(),
+    );
+    engine.set_aux_codes(vec![table]);
+    engine.set_aux_code_key(config.aux_code_key);
+    let mut router = Router::new(engine, config);
+    assert_eq!(
+        router.handle(ClientMessage::OpenSession {
+            session: SESSION,
+            app: None,
+            protocol: PROTOCOL_VERSION,
+        }),
+        None
+    );
+    router
+}
+
+/// 缺省配置 + 码表。
+fn aux_router() -> Router {
+    router_with_aux(RouterConfig::default())
 }
 
 fn letter(c: char) -> KeyEvent {
@@ -1196,4 +1236,121 @@ fn privacy_follows_the_focused_session() {
 
 fn press_in(router: &mut Router, session: SessionId, event: KeyEvent) {
     let _ = router.handle(ClientMessage::Key { session, event });
+}
+
+/// 辅码态：触发键进状态、码段按 AuxCode 段下发、逐键即筛、筛空留 preedit、退格逐级放宽。
+#[test]
+fn aux_trigger_filters_candidates_and_marks_the_code_segment() {
+    let mut router = aux_router();
+    let (_, _, frame) = type_letters(&mut router, "kaifa");
+    let before = candidate_texts(&frame).len();
+    assert!(before > 1);
+
+    // 触发键：preedit 多一个 `;`（按 Typed 画），候选先不变
+    let (outcome, committed, frame) = press(&mut router, letter(';'));
+    assert_eq!(outcome, KeyOutcome::Consumed);
+    assert!(committed.is_none());
+    assert_eq!(preedit(&frame), "kai'fa;");
+    assert_eq!(candidate_texts(&frame).len(), before);
+    assert!(!frame.preedit.iter().any(|s| s.kind == PreeditKind::AuxCode));
+
+    // 第一个码字母：只有带 k 前缀码的词留下，码段是新段类型
+    let (_, _, frame) = press(&mut router, letter('k'));
+    assert_eq!(preedit(&frame), "kai'fa;k");
+    let segment = frame
+        .preedit
+        .iter()
+        .find(|s| s.kind == PreeditKind::AuxCode)
+        .expect("code segment rides the frame");
+    assert_eq!(segment.text, "k");
+    assert!(candidate_texts(&frame).contains(&"开发"));
+    assert!(candidate_texts(&frame).contains(&"开发者"));
+    assert!(!candidate_texts(&frame).contains(&"开放"));
+
+    // 完全匹配的那条码排最前，候选带上命中的码
+    let (_, _, frame) = press(&mut router, letter('f'));
+    assert_eq!(candidate_texts(&frame)[0], "开发");
+    assert_eq!(frame.candidates.items[0].aux_code.as_deref(), Some("kf"));
+
+    // 筛空：preedit 仍在、候选空——壳按 Frame::is_empty 收起候选窗口只留拼音行
+    let (_, _, frame) = press(&mut router, letter('q'));
+    assert!(frame.candidates.items.is_empty());
+    assert!(!frame.is_empty());
+    assert_eq!(preedit(&frame), "kai'fa;kfq");
+
+    // 退格放宽（kfq → kf → k → 回拼音态），码段删空后纯拼音的候选全回来
+    press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    let (_, _, frame) = press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    assert_eq!(preedit(&frame), "kai'fa");
+    assert_eq!(candidate_texts(&frame).len(), before);
+}
+
+/// `[general] aux_code_key` 换成 `/`：`;` 不再是触发键，`/` 才是。
+#[test]
+fn aux_trigger_key_follows_config() {
+    let config = RouterConfig {
+        aux_code_key: '/',
+        ..RouterConfig::default()
+    };
+    let mut router = router_with_aux(config);
+    type_letters(&mut router, "kaifa");
+    // `;` 不是触发键：按直输段的语义进缓冲区，不进辅码态
+    let (_, _, frame) = press(&mut router, letter(';'));
+    assert!(frame.preedit.iter().all(|s| s.kind != PreeditKind::AuxCode));
+    let mut router = router_with_aux(RouterConfig {
+        aux_code_key: '/',
+        ..RouterConfig::default()
+    });
+    type_letters(&mut router, "kaifa");
+    let (_, _, frame) = press(&mut router, letter('/'));
+    assert_eq!(preedit(&frame), "kai'fa/");
+    assert!(!frame.preedit.iter().any(|s| s.kind == PreeditKind::AuxCode));
+    let (_, _, frame) = press(&mut router, letter('k'));
+    assert!(frame.preedit.iter().any(|s| s.kind == PreeditKind::AuxCode));
+    assert!(candidate_texts(&frame).contains(&"开发"));
+    let (_, _, frame) = press(&mut router, letter('h'));
+    assert_eq!(candidate_texts(&frame), ["开"]);
+}
+
+/// 辅码态里敲标点：先把高亮候选上屏，再按组句外标点语义转全角。
+#[test]
+fn punctuation_in_aux_commits_the_highlighted_candidate_first() {
+    let mut router = aux_router();
+    type_letters(&mut router, "kaifa");
+    press(&mut router, letter(';'));
+    press(&mut router, letter('k'));
+    press(&mut router, letter('f'));
+    let (_, committed, frame) = press(&mut router, punct(','));
+    assert_eq!(committed.as_deref(), Some("开发，"));
+    assert!(frame.candidates.items.is_empty());
+}
+
+/// `[general] aux_code_show` 随帧下发（候选窗按它决定要不要拼码注记）。
+#[test]
+fn aux_code_show_rides_the_frame() {
+    let mut router = aux_router();
+    let (_, _, frame) = type_letters(&mut router, "kaifa");
+    assert!(!frame.aux_code_show);
+    let mut router = router_with_aux(RouterConfig {
+        aux_code_show: true,
+        ..RouterConfig::default()
+    });
+    let (_, _, frame) = type_letters(&mut router, "kaifa");
+    assert!(frame.aux_code_show);
+}
+
+/// 码段用完删到空之后，纯拼音的候选一条不少地回来。
+#[test]
+fn deleting_the_whole_code_brings_every_candidate_back() {
+    let mut router = aux_router();
+    let (_, _, frame) = type_letters(&mut router, "kaifa");
+    let before = candidate_texts(&frame).len();
+    press(&mut router, letter(';'));
+    press(&mut router, letter('k'));
+    press(&mut router, letter('f'));
+    press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    let (_, _, frame) = press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    assert_eq!(preedit(&frame), "kai'fa");
+    assert_eq!(candidate_texts(&frame).len(), before);
 }

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
 use qingjian_core::{Engine, NoGlossFiller, NoPredictor};
-use qingjian_platform::{Config, extra_dictionaries};
+use qingjian_platform::{Config, code_tables, extra_dictionaries};
 use qingjian_predict::{CloudGlossFiller, CloudPredictor, PredictConfig};
 
 pub(super) use self::state::ConfigReload;
@@ -57,23 +57,29 @@ impl Router {
             .map(|reload| reload.config_path.as_path())
     }
 
-    /// 开启热加载：记下路径与当前已应用的 predict / dictionaries。
+    /// 开启热加载：记下路径与当前已应用的 predict / dictionaries / aux_code。
+    /// 词库与码表目录按启动同款语义传进来（`dicts/` / `codes/`），热加载与原路径一致才找得到文件。
     pub fn watch_config(
         &mut self,
         config: &Config,
         config_path: PathBuf,
         bundled_dicts_dir: Option<PathBuf>,
-        user_dir: Option<PathBuf>,
+        bundled_codes_dir: Option<PathBuf>,
+        user_dicts_dir: Option<PathBuf>,
+        user_codes_dir: Option<PathBuf>,
     ) {
         let last_mtime = mtime(&config_path);
         self.reload = Some(ConfigReload {
             config_path,
             last_check: Instant::now(),
             bundled_dicts_dir,
-            user_dir,
+            bundled_codes_dir,
+            user_dicts_dir,
+            user_codes_dir,
             last_mtime,
             applied_predict: config.predict.clone(),
             applied_dictionaries: config.dictionaries.clone(),
+            applied_aux_code: config.aux_code.clone(),
         });
     }
 
@@ -107,6 +113,7 @@ impl Router {
         self.engine.set_shuangpin(config.general.shuangpin());
         self.engine.set_zhuyin_mode(config.general.zhuyin);
         self.engine.set_mode_keys(config.shortcut.mode);
+        self.engine.set_aux_code_key(config.general.aux_code_key());
         self.config = RouterConfig::from(config);
         self.reconcile_status();
         self.apply_model_config(&config.model);
@@ -121,12 +128,22 @@ impl Router {
         if config.dictionaries != reload.applied_dictionaries {
             let dicts = extra_dictionaries::load(
                 reload.bundled_dicts_dir.as_deref(),
-                reload.user_dir.as_deref(),
+                reload.user_dicts_dir.as_deref(),
                 &config.dictionaries,
             );
             tracing::info!(count = dicts.len(), "附加词库已热重装");
             self.engine.set_extra_dictionaries(dicts);
             reload.applied_dictionaries = config.dictionaries.clone();
+        }
+        if config.aux_code != reload.applied_aux_code {
+            let tables = code_tables::load(
+                reload.bundled_codes_dir.as_deref(),
+                reload.user_codes_dir.as_deref(),
+                &config.aux_code,
+            );
+            tracing::info!(count = tables.len(), "辅码码表已热重装");
+            self.engine.set_aux_codes(tables);
+            reload.applied_aux_code = config.aux_code.clone();
         }
     }
 }

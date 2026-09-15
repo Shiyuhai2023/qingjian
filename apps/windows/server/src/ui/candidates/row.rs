@@ -13,6 +13,9 @@ pub(crate) enum Tone {
 
     /// 词性、假名注音与分隔符，最浅。
     Faint,
+
+    /// 辅码态命中的那条码（`[general] aux_code_show` 打开时才有）：与译文同一个淡色。
+    Code,
 }
 
 /// 候选窗口的一行。
@@ -32,9 +35,13 @@ pub(crate) struct Row {
 }
 
 impl Row {
-    /// `position` 是页内下标（从 0 起）。
-    pub(crate) fn from_candidate(position: usize, candidate: &Candidate) -> Self {
+    /// `position` 是页内下标（从 0 起）。`show_code` 是 `[general] aux_code_show`：
+    /// 打开且候选带码时，把码拼在 annotation 最前面（`鹤  rbm · crane`），仍是一条注记。
+    pub(crate) fn from_candidate(position: usize, candidate: &Candidate, show_code: bool) -> Self {
         let mut annotation = Vec::new();
+        if show_code && let Some(code) = &candidate.aux_code {
+            annotation.push((format!("{code} "), Tone::Code));
+        }
         if let Some(reading) = &candidate.reading {
             annotation.push((reading.clone(), Tone::Gloss));
         }

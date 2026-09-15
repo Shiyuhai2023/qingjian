@@ -3,11 +3,12 @@
 
 use std::path::{Path, PathBuf};
 
-use qingjian_core::dictionary::Dictionary;
+use qingjian_dictionary::Dictionary;
+use qingjian_dictionary::import::import as import_dictionary;
 use qingjian_platform::extra_dictionaries;
 use windows_reactor::*;
 
-use crate::panel::controls::{note, page, repo_resource};
+use crate::panel::controls::{check_row, entry_title, feedback, note, page, repo_resource};
 use crate::panel::{Message, Settings};
 
 /// 用户词库目录 `%APPDATA%\Qingjian\dicts`。
@@ -30,50 +31,6 @@ fn read_info(path: &Path, stem: &str) -> (String, usize, String, bool) {
     }
 }
 
-/// 「名称 · N 条 · 随包 / 许可证」，坏文件标出来。
-fn title(name: &str, entries: usize, license: &str, builtin: bool, broken: bool) -> String {
-    if broken {
-        return format!("{name}（文件损坏）");
-    }
-    let mut text = format!("{name} · {entries} 条");
-    if builtin {
-        text.push_str(" · 随包");
-    } else if !license.is_empty() {
-        text.push_str(&format!(" · {license}"));
-    }
-    text
-}
-
-/// 一本词库一行：复选框 + 可选的「移除」。
-fn dict_row(
-    stem: &str,
-    label: String,
-    enabled: bool,
-    broken: bool,
-    toggle: impl Fn(bool) -> Message + 'static,
-    remove: Option<Message>,
-    context: &mut ViewContext<Settings>,
-) -> KeyedView {
-    let check = CheckBox::new()
-        .is_checked(enabled)
-        .is_enabled(!broken)
-        .on_is_checked_changed(context.callback(toggle))
-        .content(label);
-    let row = match remove {
-        Some(message) => StackPanel::new()
-            .orientation(Orientation::Horizontal)
-            .spacing(12.0)
-            .children((
-                check,
-                Button::new()
-                    .on_click(context.message(message))
-                    .content("移除"),
-            )),
-        None => check,
-    };
-    KeyedView::new(stem.to_owned(), row)
-}
-
 fn bundled_list(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     let Some(dir) = repo_resource("data/generated/dicts") else {
         return note("没找到随包领域词库目录（安装布局待定）。");
@@ -86,9 +43,9 @@ fn bundled_list(settings: &Settings, context: &mut ViewContext<Settings>) -> Vie
     for (stem, path) in dicts {
         let (name, entries, license, broken) = read_info(&path, &stem);
         let enabled = settings.config.dictionaries.is_domain_enabled(&stem);
-        let label = title(&name, entries, &license, true, broken);
+        let label = entry_title(&name, entries, &license, true, broken);
         let for_msg = stem.clone();
-        rows.push(dict_row(
+        rows.push(check_row(
             &stem,
             label,
             enabled,
@@ -112,10 +69,10 @@ fn user_list(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     for (stem, path) in dicts {
         let (name, entries, license, broken) = read_info(&path, &stem);
         let enabled = settings.config.dictionaries.is_enabled(&stem);
-        let label = title(&name, entries, &license, false, broken);
+        let label = entry_title(&name, entries, &license, false, broken);
         let for_msg = stem.clone();
         let remove = Message::RemoveUserDict(stem.clone());
-        rows.push(dict_row(
+        rows.push(check_row(
             &stem,
             label,
             enabled,
@@ -148,8 +105,9 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 Button::new()
                     .on_click(context.message(Message::ImportDictionary))
                     .content("导入词库…"),
-                note("接受青简 TSV、Rime .dict.yaml、.qj；导入即复制进上面的目录。"),
+                note("接受青简 TSV、Rime .dict.yaml 与现成的 .qj；导入即转换进上面的目录，同名覆盖。"),
             )),
+        feedback(&settings.notice),
     ]);
     page("词库", body)
 }
@@ -175,8 +133,8 @@ pub(crate) fn remove_user_dict(settings: &Settings, stem: &str) {
     }
 }
 
-/// 文件选择器选一本，复制进用户词库目录。
-pub(crate) fn import(settings: &Settings) {
+/// 文件选择器选一本，转换后放进用户词库目录；结果进页面底部的提示。
+pub(crate) fn import(settings: &mut Settings) {
     let Some(source) = rfd::FileDialog::new()
         .add_filter("词库文件", &["tsv", "yaml", "yml", "qj"])
         .add_filter("所有文件", &["*"])
@@ -185,15 +143,11 @@ pub(crate) fn import(settings: &Settings) {
     else {
         return;
     };
-    let dir = user_dir(settings);
-    if let Err(error) = std::fs::create_dir_all(&dir) {
-        eprintln!("建用户词库目录失败: {error}");
-        return;
-    }
-    let Some(file_name) = source.file_name() else {
-        return;
-    };
-    if let Err(error) = std::fs::copy(&source, dir.join(file_name)) {
-        eprintln!("导入词库失败: {error}");
+    match import_dictionary(&source, &user_dir(settings)) {
+        Ok(imported) => settings.notice.succeed(format!(
+            "已导入词库「{}」：{} 条",
+            imported.name, imported.entries
+        )),
+        Err(error) => settings.notice.fail(format!("导入词库失败：{error}")),
     }
 }

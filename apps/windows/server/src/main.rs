@@ -161,6 +161,7 @@ fn main() {
         .or_else(|| glossary_file(&root, language))
         .filter(|path| path.is_file());
     let bundled_dicts_dir = Some(root.join("data/generated/dicts")).filter(|dir| dir.is_dir());
+    let bundled_codes_dir = Some(root.join("codes")).filter(|dir| dir.is_dir());
     let spec = AssemblySpec {
         glossary: glossary.clone().map(|path| (language, path)),
         english_glossary: glossary_file(&root, Language::Chinese),
@@ -172,6 +173,8 @@ fn main() {
         language_model: LanguageModelFiles::find(&root.join("data/generated")),
         bundled_dicts_dir: bundled_dicts_dir.clone(),
         dictionaries: config.dictionaries.clone(),
+        bundled_codes_dir: bundled_codes_dir.clone(),
+        aux_code: config.aux_code.clone(),
         levels_dir: Some(root.join("assets/levels")),
         user_dir: user_dir(),
         input_log: config.general.input_log,
@@ -188,6 +191,7 @@ fn main() {
     engine.set_shuangpin(config.general.shuangpin());
     engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_mode_keys(config.shortcut.mode);
+    engine.set_aux_code_key(config.general.aux_code_key());
     engine.log_session(env!("CARGO_PKG_VERSION"), "windows");
     dispatch::attach_cloud(&mut engine, &config.predict);
     let router_config = RouterConfig::from(&config);
@@ -195,7 +199,15 @@ fn main() {
     let model_path = dispatch::find_model(user_dir().as_deref(), &root);
     router.configure_local_model(model_path.clone(), &config.model);
     if let Some(path) = config_path() {
-        router.watch_config(&config, path, bundled_dicts_dir, user_dir());
+        let user = user_dir();
+        router.watch_config(
+            &config,
+            path,
+            bundled_dicts_dir,
+            bundled_codes_dir,
+            assembly::user_dicts_dir(user.as_deref()),
+            assembly::user_codes_dir(user.as_deref()),
+        );
     }
     tracing::info!(
         dict = %dict.display(),

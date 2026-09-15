@@ -108,6 +108,7 @@ impl Router {
             page_count: 1,
             layout: self.config.layout,
             theme: self.config.theme,
+            aux_code_show: self.config.aux_code_show,
             sentence: None,
             notice: None,
         }
@@ -122,5 +123,6 @@ fn translate_candidate(text: String) -> Candidate {
         syllables: Vec::new(),
         reading: None,
         translation: None,
+        aux_code: None,
     }
 }

@@ -155,6 +155,10 @@ impl Router {
             return with_prefix(raw, Effect::Passthrough, c);
         }
         if c.is_ascii_lowercase() {
+            // 辅码态：字母进码段（逐键即筛），不进拼音缓冲区
+            if self.engine.push_aux_code(c) {
+                return Effect::Changed(None);
+            }
             self.engine.push(c);
             return Effect::Changed(None);
         }
@@ -219,6 +223,11 @@ impl Router {
             self.engine.push(c);
             return Effect::Changed(None);
         }
+        // 辅码触发键：拼音打完整了、这个键也没被键盘方案吃掉 → 进辅码态（触发键不进缓冲区）
+        if self.engine.aux_trigger(c) {
+            self.engine.enter_aux();
+            return Effect::Changed(None);
+        }
         if let Some(digit) = codes::digit(event)
             && self.candidate_count() > 0
         {
@@ -235,6 +244,12 @@ impl Router {
         }
         // 表达式 / 问字模式下的其他字符不进缓冲区（与 macOS 壳一致）：先把高亮候选上屏，再按没在组句处理这个键。
         if c != '\'' && (expression || self.engine.question_mode()) {
+            let committed = self.commit_highlighted();
+            let effect = self.apply_punctuation(c, event);
+            return with_prefix(Some(committed), effect, c);
+        }
+        // 辅码态里敲标点：先上屏当前高亮候选（码段随之清空），再按组句外标点语义转全角
+        if self.engine.in_aux() {
             let committed = self.commit_highlighted();
             let effect = self.apply_punctuation(c, event);
             return with_prefix(Some(committed), effect, c);

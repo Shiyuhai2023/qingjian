@@ -55,6 +55,21 @@ pub(crate) enum Message {
     RemoveUserDict(String),
     ImportDictionary,
 
+    // 辅码页
+    /// 候选上是否显示码。
+    AuxCodeShow(bool),
+    /// 点「录制」：进入等一个键的状态。
+    AuxRecordStart,
+    /// 录制中放弃，保持原值。
+    AuxRecordCancel,
+    /// 录制框敲进来的文本，取第一个字符当新触发键。
+    AuxRecorded(String),
+    /// 码表开关（名字，开 / 关），关掉的进 `[aux_code] disabled`。
+    ToggleAuxTable(String, bool),
+    /// 挪进 codes\removed，不真删。
+    RemoveAuxTable(String),
+    ImportCodeTable,
+
     // 高级页
     VerboseLog(bool),
     InputLog(bool),

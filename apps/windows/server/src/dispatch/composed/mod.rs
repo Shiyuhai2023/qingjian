@@ -160,6 +160,7 @@ impl Router {
                 page_count: 1,
                 layout: self.config.layout,
                 theme: self.config.theme,
+                aux_code_show: self.config.aux_code_show,
                 sentence: None,
                 notice: self.notice.clone(),
             },
@@ -187,6 +188,7 @@ impl Router {
                     page_count: layout.pages().max(1),
                     layout: self.config.layout,
                     theme: self.config.theme,
+                    aux_code_show: self.config.aux_code_show,
                     sentence: self.sentence.clone(),
                     notice: self.notice.clone(),
                 }
