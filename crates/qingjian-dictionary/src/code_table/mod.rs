@@ -5,6 +5,7 @@
 //! 分节：`TEXT` 词文本 arena、`CODES` 码键 arena、`ENTR` 条目表（按词文本字节序升序，同词的条目相邻）、
 //! `HASH` 词 → 条目区间的哈希索引（槽 = 区间起点，键 = 词文本）。
 
+mod columns;
 mod entry;
 mod import;
 mod imported;

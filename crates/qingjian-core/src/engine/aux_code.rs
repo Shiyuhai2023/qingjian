@@ -1,6 +1,7 @@
 //! 辅码态：触发键的判定、码段的增删、码表查询。码段独立于拼音缓冲区（见 [\`Engine\`] 的 \`aux_code\` 字段）。
 
-use super::*;
+use super::{AuxSegment, Engine};
+use crate::parser;
 
 /// 不能当触发键的翻页键（\`[general] page_keys\` 的可选值）：它们组句里有别的含义。
 const PAGING_KEYS: [char; 4] = ['[', ']', ',', '.'];

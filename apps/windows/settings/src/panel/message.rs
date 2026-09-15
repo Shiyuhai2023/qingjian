@@ -68,6 +68,7 @@ pub(crate) enum Message {
     ToggleAuxTable(String, bool),
     /// 挪进 codes\removed，不真删。
     RemoveAuxTable(String),
+    /// 打开文件选择器导入一张码表（Rime `.dict.yaml`）。
     ImportCodeTable,
 
     // 高级页

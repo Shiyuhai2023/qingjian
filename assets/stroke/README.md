@@ -11,7 +11,7 @@
 | 字形来源（笔顺序列） | CNS11643 中文標準交換碼全字庫「筆順資料」`CNS_strokes_sequence.txt` | 政府資料開放授權條款第 1 版 **或** OFL-1.1（二选一，可再分发含商用，**需署名**） | 原始 zip 不入库（`data/cns/`，gitignore），只留生成产物 |
 | CNS→Unicode 映射 | 同一数据集的 `MapingTables.zip`（`CNS2UNICODE_Unicode*.txt` 4 个平面） | 同上 | 不入库（`data/cns/`） |
 | 自洽过滤 | 同一数据集的 `CNS_stroke.txt`（筆畫數） | 同上 | 不入库（`data/cns/`） |
-| 抽样对照（**开发期**） | Make Me a Hanzi / hanzi-writer-data 2.0.1 每字 `strokes` 条数（PRC 笔顺） | Arphic Public License；**不随包分发**，只留「字 + 笔画数」这类事实性结论 | `prc-counts-l1.tsv`（一级字 3,500 行） |
+| 抽样对照（**开发期**） | Make Me a Hanzi / hanzi-writer-data 2.0.1 每字 `strokes` 条数（PRC 笔顺） | Arphic Public License；**不随包分发**，只留「字 + 笔画数」这类事实性结论 | `tools/dict-convert/testdata/prc-counts-l1.tsv`（一级字 3,500 行） |
 
 数据集页 <https://data.gov.tw/dataset/5961>，下载 <https://www.cns11643.gov.tw/opendata/Properties.zip> 与
 <https://www.cns11643.gov.tw/opendata/MapingTables.zip>（解到 `data/cns/`）；对照源 `hanzi-writer-data-2.0.1.tgz`（npm registry）解到 `data/mmh/`。
@@ -23,7 +23,7 @@ t07（数据源查证）/ t09（归一化决议）两张票：**CNS 作字形来
 | 文件 | 内容 |
 | --- | --- |
 | `prc-rules.tsv` | 大陆序覆盖表：`rule`（部件重写）/ `skip`（例外字）/ `char`（整字补录）三类行，格式见文件头 |
-| `prc-counts-l1.tsv` | 一级字大陆笔画数对照表（抽样对照用；来源 MMH，见上表） |
+| `tools/dict-convert/testdata/prc-counts-l1.tsv` | 一级字大陆笔画数对照表（抽样对照用；来源 MMH，见上表） |
 | `residual-whitelist.tsv` | 残留差异白名单：抽样里已知且接受的差异（7 字），白名单之外一处不符即验收失败 |
 
 ## 生成与验收

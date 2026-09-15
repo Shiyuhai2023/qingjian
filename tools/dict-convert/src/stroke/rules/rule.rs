@@ -1,3 +1,5 @@
+//! 大陆笔顺覆盖规则：模式、替换与说明。
+
 use std::collections::HashSet;
 
 use crate::stroke::rules::anchor::Anchor;

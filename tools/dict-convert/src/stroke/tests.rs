@@ -1,3 +1,5 @@
+//! stroke 子命令的规则与抽样对照测试。
+
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::path::Path;

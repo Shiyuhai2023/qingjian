@@ -10,7 +10,7 @@ use qingjian_platform::protocol::{
     ClientMessage, Frame, KeyEvent, KeyModifiers, KeyOutcome, PROTOCOL_VERSION, PreeditKind,
     ServerMessage, SessionId,
 };
-use qingjian_platform::{AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS};
+use qingjian_platform::{AppsConfig, Config, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS};
 use qingjian_windows_server::dispatch::{StatusEvent, StatusSink, StatusView};
 use qingjian_windows_server::{AssemblySpec, Router, RouterConfig, assembly};
 
@@ -1353,4 +1353,60 @@ fn deleting_the_whole_code_brings_every_candidate_back() {
     let (_, _, frame) = press(&mut router, KeyEvent::new(0x08, None, Default::default()));
     assert_eq!(preedit(&frame), "kai'fa");
     assert_eq!(candidate_texts(&frame).len(), before);
+}
+
+/// 设置页刚导入一张码表：`codes/` 目录的 mtime 变了就重装，不必等配置改动、也不必重启。
+#[test]
+fn a_new_code_table_in_the_user_dir_hot_reloads() {
+    let dir = std::env::temp_dir().join(format!("qingjian-codes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let codes = dir.join("codes");
+    std::fs::create_dir_all(&codes).unwrap();
+    let mut router = router();
+    router.watch_config(
+        &Config::default(),
+        dir.join("config.toml"),
+        None,
+        None,
+        None,
+        Some(codes.clone()),
+    );
+
+    // 目录还空着：进辅码态敲码筛掉一切
+    type_letters(&mut router, "kaifa");
+    press(&mut router, letter(';'));
+    let (_, _, frame) = press(&mut router, letter('k'));
+    assert!(frame.candidates.items.is_empty());
+
+    let table = CodeTable::from_pairs([("开发".to_owned(), "kf".to_owned())]).unwrap();
+    table
+        .write_qj(&codes.join("mine.qj"), &Default::default())
+        .unwrap();
+    // 热加载一秒看一次文件
+    std::thread::sleep(std::time::Duration::from_millis(1200));
+    router.poll_config_reload();
+
+    // 码表生效（重装顺带退出了辅码态），同样的键这次筛到 开发
+    let (_, _, frame) = press(&mut router, letter(';'));
+    assert_eq!(preedit(&frame), "kai'fa;");
+    let (_, _, frame) = press(&mut router, letter('k'));
+    assert_eq!(candidate_texts(&frame), ["开发"]);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// 边界 14：辅码态里再敲一次触发键是幂等的——留在辅码态，既不上屏候选也不当标点。
+#[test]
+fn pressing_the_trigger_again_in_aux_mode_is_a_no_op() {
+    let mut router = aux_router();
+    type_letters(&mut router, "kaifa");
+    press(&mut router, letter(';'));
+    press(&mut router, letter('k'));
+    let (outcome, committed, frame) = press(&mut router, letter(';'));
+    assert_eq!(outcome, KeyOutcome::Consumed);
+    assert!(committed.is_none());
+    assert_eq!(preedit(&frame), "kai'fa;k");
+    assert!(frame.candidates.items.iter().all(|c| c.text != "开发，"));
+    // 码段照旧能删、能继续敲
+    let (_, _, frame) = press(&mut router, letter('f'));
+    assert_eq!(preedit(&frame), "kai'fa;kf");
 }

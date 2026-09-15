@@ -2,35 +2,8 @@
 
 use std::path::Path;
 
+use super::columns::{Columns, default_column_names, names_to_columns};
 use super::table::is_valid_code;
-
-/// Rime `.dict.yaml` 缺省的三列，与 Rime 一致。
-const DEFAULT_COLUMNS: [&str; 3] = ["text", "code", "weight"];
-
-/// 码表文件里的列位置：`columns` 列表按名字定下标。表里没有 `code` 列就是纯词表。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct Columns {
-    /// 词在哪一列。
-    pub text: usize,
-
-    /// 码在哪一列；`None` 表示这是纯词表（`columns: [text, weight]`）。
-    pub code: Option<usize>,
-}
-
-impl Default for Columns {
-    fn default() -> Self {
-        names_to_columns(&DEFAULT_COLUMNS.map(str::to_owned))
-    }
-}
-
-/// 按 `columns` 列表里的名字定下标；列表里没有的名字就是 `None`。`text` 缺省在第 0 列。
-fn names_to_columns(names: &[String]) -> Columns {
-    let index_of = |want: &str| names.iter().position(|name| name == want);
-    Columns {
-        text: index_of("text").unwrap_or(0),
-        code: index_of("code"),
-    }
-}
 
 /// 一份码表文件（不含 `import_tables` 合进来的部分）解析出来的东西。
 #[derive(Debug, Default)]
@@ -68,10 +41,7 @@ impl ParsedTable {
     /// 正文每行按 `columns` 的列位置取词与码。没有头、直接 `词\t码` 的纯文本也认（按缺省列序）。
     pub fn parse(text: &str) -> Self {
         let mut parsed = Self::default();
-        let mut names: Vec<String> = DEFAULT_COLUMNS
-            .iter()
-            .map(|name| (*name).to_owned())
-            .collect();
+        let mut names: Vec<String> = default_column_names();
         let mut in_header = false;
         let mut header_done = false;
         let mut pending_imports = false;

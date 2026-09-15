@@ -69,6 +69,7 @@ impl Router {
         user_codes_dir: Option<PathBuf>,
     ) {
         let last_mtime = mtime(&config_path);
+        let codes_mtime = user_codes_dir.as_deref().and_then(mtime);
         self.reload = Some(ConfigReload {
             config_path,
             last_check: Instant::now(),
@@ -76,6 +77,7 @@ impl Router {
             bundled_codes_dir,
             user_dicts_dir,
             user_codes_dir,
+            codes_mtime,
             last_mtime,
             applied_predict: config.predict.clone(),
             applied_dictionaries: config.dictionaries.clone(),
@@ -83,7 +85,8 @@ impl Router {
         });
     }
 
-    /// 空闲时调；一秒内只真正看一次文件。解析失败保持原配置，mtime 照记（不每秒重试同一个坏文件）。
+    /// 空闲时调；一秒内只真正看一次。配置文件或用户 `codes/` 目录的 mtime 变了就重装；
+    /// 解析失败保持原配置，mtime 照记（不每秒重试同一个坏文件）。
     pub fn poll_config_reload(&mut self) {
         let Some(reload) = &mut self.reload else {
             return;
@@ -92,12 +95,26 @@ impl Router {
             return;
         }
         reload.last_check = Instant::now();
-        let current = mtime(&reload.config_path);
-        if current == reload.last_mtime {
+        let config_changed = {
+            let current = mtime(&reload.config_path);
+            let changed = current != reload.last_mtime;
+            reload.last_mtime = current;
+            changed
+        };
+        // 用户 `codes/` 目录变了（设置页刚导入 / 移除一张码表）：不必等配置改动，下一拍就生效
+        let codes_changed = {
+            let current = reload.user_codes_dir.as_deref().and_then(mtime);
+            let changed = current != reload.codes_mtime;
+            reload.codes_mtime = current;
+            changed
+        };
+        let path = reload.config_path.clone();
+        if codes_changed {
+            self.reload_aux_codes();
+        }
+        if !config_changed {
             return;
         }
-        reload.last_mtime = current;
-        let path = reload.config_path.clone();
         match Config::load(&path) {
             Ok(config) => {
                 self.apply_config(&config);
@@ -136,14 +153,25 @@ impl Router {
             reload.applied_dictionaries = config.dictionaries.clone();
         }
         if config.aux_code != reload.applied_aux_code {
-            let tables = code_tables::load(
-                reload.bundled_codes_dir.as_deref(),
-                reload.user_codes_dir.as_deref(),
-                &config.aux_code,
-            );
-            tracing::info!(count = tables.len(), "辅码码表已热重装");
-            self.engine.set_aux_codes(tables);
             reload.applied_aux_code = config.aux_code.clone();
+            self.reload_aux_codes();
         }
+    }
+
+    /// 按当前配置重装辅码码表：`codes/` 目录变了或 `[aux_code]` 变了都走这里。
+    fn reload_aux_codes(&mut self) {
+        let Some(reload) = &self.reload else {
+            return;
+        };
+        let tables = code_tables::load(
+            reload.bundled_codes_dir.as_deref(),
+            reload.user_codes_dir.as_deref(),
+            &reload.applied_aux_code,
+        );
+        if let Some(reload) = &mut self.reload {
+            reload.codes_mtime = reload.user_codes_dir.as_deref().and_then(mtime);
+        }
+        tracing::info!(count = tables.len(), "辅码码表已重装");
+        self.engine.set_aux_codes(tables);
     }
 }

@@ -1,3 +1,5 @@
+//! stroke 子命令的参数与默认值。
+
 use std::path::PathBuf;
 
 /// `stroke` 子命令的参数。

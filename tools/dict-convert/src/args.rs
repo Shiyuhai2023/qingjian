@@ -205,7 +205,7 @@ pub enum Command {
         stride: usize,
 
         /// 对照表（`字<TAB>大陆笔画数`）：抽样字表里每个字都要有
-        #[arg(long, default_value = "assets/stroke/prc-counts-l1.tsv")]
+        #[arg(long, default_value = "tools/dict-convert/testdata/prc-counts-l1.tsv")]
         reference: PathBuf,
 
         /// 残留差异白名单（`字<TAB>本表笔画数<TAB>对照笔画数<TAB>说明`）
