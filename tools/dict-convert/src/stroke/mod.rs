@@ -13,7 +13,7 @@
 //! 5. `--filter`：字表白名单（缺省通用规范字表 8,105 字），只出表里的字，按表序排列。
 //!
 //! `--verify` 再按抽样对照表逐字比对大陆笔画数：不符的字必须都在白名单里，否则退出码非 0。
-//! 数据来源、许可与验收记录见 `assets/stroke/README.md`。
+//! 数据来源、许可与验收记录见 `assets/stroke/README.md`；随包前由 `pack codes`（见 `codes` 模块）按取码规则把它与词库算成码表。
 
 mod options;
 mod rules;
@@ -29,7 +29,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::error::ConvertError;
-use crate::stroke::rules::{PrcRules, malformed, single_char};
+use crate::stroke::rules::PrcRules;
+pub(crate) use crate::stroke::rules::{malformed, single_char};
 
 pub use crate::stroke::options::StrokeOptions;
 

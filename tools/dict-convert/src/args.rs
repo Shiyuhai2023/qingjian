@@ -215,7 +215,8 @@ pub enum Command {
 
     /// 把 TSV 打包成 `.qj` 容器（mmap 直接用，启动近零耗时）：`dict` 读 dict.tsv 写 dict.qj，`lm` 读 lm-unigram/bigram.tsv 写 lm.qj，
     /// `glossary --language en` 读 glossary-en.tsv 写 glossary-en.qj；`model` 把训练仓库导出的三件套目录（缺省 data/model）
-    /// 打成一个 model.qjm（`--out-dir data/model` 就写回原目录，随包只带这一个文件）
+    /// 打成一个 model.qjm（`--out-dir data/model` 就写回原目录，随包只带这一个文件）；
+    /// `codes` 是唯一不「原样落盘」的一种：读笔画表与词库，按取码规则算成本地码表 codes/stroke.qj（见 codes 模块）
     Pack {
         /// 打包哪种数据
         kind: PackKind,
@@ -224,8 +225,20 @@ pub enum Command {
         #[arg(long, num_args = 1..)]
         input: Vec<PathBuf>,
 
-        /// 元数据：名称
+        /// `codes` 用：笔画表（`stroke` 子命令的产物，`字\t序列`）；缺省 <输出目录>/codes/stroke.tsv
         #[arg(long)]
+        stroke: Option<PathBuf>,
+
+        /// `codes` 用：取码用的词库（`.qj` 或 TSV）；缺省 <输出目录>/dict.qj
+        #[arg(long)]
+        dict: Option<PathBuf>,
+
+        /// `codes` 用：码表产物；缺省 <输出目录>/codes/stroke.qj
+        #[arg(long)]
+        output: Option<PathBuf>,
+
+        /// 元数据：名称（`codes` 缺省「笔画」，别的种类必填）
+        #[arg(long, default_value = "")]
         name: String,
 
         /// 元数据：许可证（SPDX 标识，如 GPL-3.0-only、CC-BY-SA-4.0）
@@ -264,4 +277,20 @@ pub enum PackKind {
 
     /// 本地整句模型（三件套目录 → model.qjm）
     Model,
+
+    /// 笔画码表（笔画表 + 词库 → codes/stroke.qj，随包原生码表）
+    Codes,
+}
+
+impl PackKind {
+    /// 子命令里写的名字（报错文案用）。
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Dict => "dict",
+            Self::Lm => "lm",
+            Self::Glossary => "glossary",
+            Self::Model => "model",
+            Self::Codes => "codes",
+        }
+    }
 }

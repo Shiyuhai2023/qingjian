@@ -8,6 +8,8 @@
 //! - `mine`：语料里分词落成连续单字的段 → `oov-candidates.tsv`（词库没收的高频词，标音后用 `lexicon --extra-words` 并入）
 //! - `phrases`：bigram 表的相邻两词 + 语料的相邻三词 → `phrases.tsv`（我的 / 不知道 这类短语层，读音由成分词拼出，同样用 `lexicon --extra-words` 并入）
 //! - `stroke`：CNS11643 全字庫「筆順資料」+ 大陆序覆盖表（`assets/stroke/prc-rules.tsv`）→ `codes/stroke.tsv`（随包笔画码表的源数据，`--verify` 抽样对照大陆笔画数）
+//! - `pack codes`：笔画表（`stroke` 的产物，`字\t序列`）+ 词库 → `codes/stroke.qj`（随包原生辅码表：单字前 4 笔 + 末笔、
+//!   词组每字首笔；缺字的词跳过并计入统计，见 `codes` 模块）
 //! - `pack dict|lm|glossary|model`：TSV → `.qj` 容器（`dict.qj` / `lm.qj`），带名称 / 许可证 / 署名元数据，输入法与 CLI 优先加载它；
 //!   `model` 把本地整句模型的三件套目录打成一个 `model.qjm`
 //!
@@ -16,6 +18,7 @@
 mod args;
 mod bigram;
 mod cedict;
+mod codes;
 mod emoji;
 mod english;
 mod error;
@@ -164,6 +167,9 @@ fn run() -> Result<(), ConvertError> {
         Command::Pack {
             kind,
             input,
+            stroke,
+            dict,
+            output,
             name,
             license,
             attribution,
@@ -173,6 +179,11 @@ fn run() -> Result<(), ConvertError> {
         } => pack::pack(
             kind,
             &input,
+            &pack::CodePaths {
+                stroke: stroke.as_deref(),
+                dict: dict.as_deref(),
+                output: output.as_deref(),
+            },
             &language,
             qingjian_format::Metadata {
                 name,

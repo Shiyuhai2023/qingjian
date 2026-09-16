@@ -34,6 +34,16 @@ cargo run --release -p qingjian-dict-convert -- stroke --cns-count data/cns/CNS_
 ```
 
 `--verify` 按「一级字表每 12 字取 1」（291 字）逐字比对大陆笔画数：不符的字必须都在白名单里，否则退出码非 0。
+
+随包时再算成码表（缺省读 `data/generated/codes/stroke.tsv` 与 `data/generated/dict.qj`，写 `data/generated/codes/stroke.qj`）：
+
+```bash
+cargo run --release -p qingjian-dict-convert -- pack codes
+```
+
+按设计文档的取码规则算码（单字「前 4 笔 + 末笔」、词组每字首笔，缺字的词跳过并计入统计）；元数据缺省写明
+名称「笔画」、许可 `OFL-1.1`、署名「CNS11643 全字庫筆順資料（中華民國數位發展部）」与数据集页来源，
+可用 `--name` / `--license` / `--attribution` / `--source` / `--data-version` 覆盖（数据版本缺省取笔画表日期）。
 产物随包只带生成结果，原始 zip 与对照源都不入库。
 
 ### 验收记录（2026-09-15）
@@ -61,6 +71,13 @@ cargo run --release -p qingjian-dict-convert -- stroke --cns-count data/cns/CNS_
   设计文档「差异集中在艹 / 辶 / 阝」只对了一部分：覆盖表把不符从 926 处压到 241 处（修掉 685 处成片差异），
   剩下的（及 / 巨 / 之 / 与 / 母 / 书 / 我 的字形与笔顺归类差异）不能由模式替换从 CNS 序列推出，
   要逐字人工核；抽样白名单只登记落在抽样里的 7 个（`--stride` 越小抽样越密，白名单要同步增补）。
+- **已知范围之二：首笔不保证对**（2026-09-16 补测，诊断口径）。上一节的抽样只比**笔画数**，比不出「笔数对、
+  顺序不同」的偏差。用开发期对照源（`data/mmh/`，hanzi-writer-data 的 medians）对全表首笔方向做了一次粗筛：
+  6,862 个可比字里 58 处（0.8%）方向与我们的首笔类型对不上，其中一部分是提 / 竖提 / 折这类「末端转向」被误判，
+  但 **丰 / 耒 / 皮 一族的首笔确实可疑**（丰 我们的序列 `311`：首笔记成撇，大陆规范是横），而首笔错了，
+  含这个字的每个词的码都跟着错。示例：发 `535nn`（首笔记成折，对照源的几何方向接近横）。
+  复现：`node .scratch/first-stroke-audit.js`（仓库外工具，脚本未入库）；修法是把这类成片的字形差异补进
+  `prc-rules.tsv`（或加一张「首笔覆盖表」），再重跑 `stroke` + `pack codes`。
 
 ## 随包时的许可合规
 

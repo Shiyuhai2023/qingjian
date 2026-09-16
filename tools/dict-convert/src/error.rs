@@ -20,6 +20,13 @@ pub enum ConvertError {
     #[error(transparent)]
     Neural(#[from] qingjian_neural::NeuralError),
 
+    /// `pack` 少了必填的元数据（只有 `codes` 有缺省值）。
+    #[error("pack {kind} needs --name")]
+    MissingName {
+        /// `pack` 的种类名。
+        kind: &'static str,
+    },
+
     /// 抽样对照出现白名单之外的不符。
     #[error("stroke verification failed: {unmatched} character(s) differ outside the whitelist")]
     Verify {

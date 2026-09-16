@@ -117,8 +117,8 @@ impl PrcRules {
     }
 }
 
-/// 第一个字段就是一个字（覆盖表与字表白名单都按这个口径认行）。
-pub(super) fn single_char(field: &str) -> Option<char> {
+/// 第一个字段就是一个字（覆盖表、字表白名单与笔画表都按这个口径认行）。
+pub(crate) fn single_char(field: &str) -> Option<char> {
     let mut chars = field.chars();
     let ch = chars.next()?;
     if chars.next().is_none() {
@@ -128,8 +128,8 @@ pub(super) fn single_char(field: &str) -> Option<char> {
     }
 }
 
-/// 覆盖表里的坏行。
-pub(super) fn malformed(path: &Path, line: usize, reason: &str) -> ConvertError {
+/// 这类表里的坏行（覆盖表、笔画表共用同一套报错）。
+pub(crate) fn malformed(path: &Path, line: usize, reason: &str) -> ConvertError {
     ConvertError::Format {
         path: PathBuf::from(path),
         line,
