@@ -48,10 +48,10 @@ pub(super) fn parse_speller(text: &str) -> Speller {
         }
         match section {
             Some(Section::Schema) => {
-                if let Some(value) = trimmed.strip_prefix("name:") {
-                    if speller.name.is_none() {
-                        speller.name = Some(unquote(value.trim()));
-                    }
+                if let Some(value) = trimmed.strip_prefix("name:")
+                    && speller.name.is_none()
+                {
+                    speller.name = Some(unquote(value.trim()));
                 }
             }
             Some(Section::Speller) => {

@@ -14,11 +14,18 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 `AuxCodeLookup::code_with_prefix` 一个方法：候选词逐个问「有没有以当前码段开头的码」。导入 `import_code_table`
 解析 Rime `.dict.yaml` 的 `columns`（缺省 text / code / weight）与 `import_tables`（相对主文件目录合表），
 「有词无码」与非法码进统计返回、不静默跳过；一个可用条目都没有时报 `NoCodeEntries`。
+自定义双拼求值器（`shuangpin/`）：解析 Rime `.schema.yaml` 的 speller 子集（`algebra` 的 xform / derive / abbrev
+白名单 + `alphabet` / `initials`），导入期把全拼音节表（调用方给 (音节, 声母长度)）投影成静态键位表
+（`finals` / `zero_initials` / `semicolon`）——语义照 librime：xform 改写、derive 分叉（原样与改写都继续）、
+abbrev 产出后终结该条；只收两键码，替换串里的 `$1a` 先规范化（Rust `regex` 会把 `$1a` 当成组名 `1a`）。
+超出子集的规则进 `unsupported` 统计并跳过；一条规则都没认下、求不出表、与内置四套同名时报错拒绝。
+`import_shuangpin` 落 `<名字>.tsv` + 原始 `<名字>.yaml`（来源留证），`load_shuangpin` 读回；TSV 是头注释 + 两节 `键位<TAB>值`。
+依赖 `regex`（只在导入期用，运行时热路径不碰）。
 
 ## crates/qingjian-core
 
 模块：`composition` / `parser` / `correction`（拼写纠错：整段一处编辑的候选纠正 + `typo` 音节级敲错变体表，后者进整句词图当带代价的边）/
-`candidate` / `ranking` / `shortcut` / `sentence` / `fuzzy` / `shuangpin`（双拼：四套方案键位表、键 → 全拼解码与消耗换算）/ `zhuyin`（大千注音：键 → 注音符号 → 拼音，`[general] zhuyin` 开关，声调只判音节完整不进查询）/ `emoji` /
+`candidate` / `ranking` / `shortcut` / `sentence` / `fuzzy` / `shuangpin`（双拼：四套内置方案键位表 + `Scheme::Custom(Arc<CustomScheme>)` 自定义方案、键 → 全拼解码与消耗换算；表数据自有的方案带进来，解码逻辑与内置同构，声母键沿用 v / i / u = zh / ch / sh）/ `zhuyin`（大千注音：键 → 注音符号 → 拼音，`[general] zhuyin` 开关，声调只判音节完整不进查询）/ `emoji` /
 `english`（英文模式候选）/ `engine`（`query::EnglishTail`：句末英文词并入整句，`woxiangxuehaorust` → 我想学好rust，尾段也像拼音时按分数与拼音读法比）。
 辅码（`engine/aux_code.rs`）：`Engine.aux_code: Option<String>` 是码段（`None` 拼音态，`Some("")` 刚触发），
 不进 `Composition`；`aux_trigger`（配的触发键 + 光标在段尾 + 作用域能完整切分 + 双拼韵母键优先）、`enter_aux`、
@@ -110,10 +117,12 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 - `--predict` 强制开云联想并等结果打印，交互模式下上屏后也联想。
 - `--typing` 逐键计时（性能测试用 release 构建跑，目标每键 10 ms 以内）。
 - `--replay <input-log.jsonl>` 回放评测：把日志里每次上屏的键重新喂给引擎，按来源算首选 / 前五命中率、平均名次、不在候选的条数，打印没命中的例子（`--misses N`）；
-  只在内存里学习不写文件，加 `--user-dict` 可带上现有学习数据。
+  只在内存里学习不写文件，加 `--user-dict` 可带上现有学习数据。含触发键的日志行按壳那样逐键重喂（进辅码态、码段进码段），
+  并多打一行「辅码选词 N 条，其中同拼音纯输入首选命中 M 条」（学习闭环的尺子）。
 - `--aux-table <路径>`（可多次）装辅码码表（`.qj` 或 `词<Tab>码` TSV）；交互模式与查询模式都按壳的方式逐键喂入，
   配的触发键进辅码态、之后的字母进码段，候选行会带上命中的码。
 - `--tune 名=值`（逗号分隔）覆盖个人 n-gram 插值与敲错代价的常数扫网格（名字见 `apps/cli/src/tuning.rs`，Core 侧是 `Engine::set_interpolation` / `set_typo_costs`，壳只用缺省值）。
+- `--eval-text <文本>...` 装了码表（`--aux-table`）时多打一行码表覆盖率：词频前 10,000 与全库两段命中比例（与导入统计同源）。
 - `--eval-text <文本>...` 整句评测：把用户自己写的中文文本按标点切句、按词库读音转成全拼，冷启动喂给引擎看整句能不能还原原句
   （首选命中率 / 字准确率 / 查询耗时；不依赖日志里当时选了什么，给整句排序与语言模型的改动当尺子），`--eval-save` 冻结成 `句子\t拼音\t上文` 三列文件，
   之后直接 `--eval-text` 它保证比的是同一份句子（本机的在 `data/eval/sentences.tsv`）。排序、整句、纠错的改动先跑它们再合。
