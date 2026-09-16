@@ -8,7 +8,7 @@ use windows_reactor::*;
 use super::cloud_status::CloudStatus;
 use super::controls::{open_in_editor, open_with_explorer};
 use super::notice::Notice;
-use super::pages::{about, aux_code, cloud, dictionaries, general, shortcut};
+use super::pages::{about, aux_code, cloud, dictionaries, general, shortcut, shuangpin};
 use super::recorder::Recorder;
 use super::{Message, Settings};
 
@@ -27,6 +27,7 @@ impl Component for Settings {
             recorder: Recorder::Idle,
             record_box: ElementRef::new(),
             notice: Notice::default(),
+            shuangpin_revision: 0,
         }
     }
 
@@ -47,8 +48,10 @@ impl Component for Settings {
                 let size = (value.round() as i64).clamp(1, 9);
                 self.save("general", "page_size", size);
             }
-            Message::Shuangpin(Some(i)) if i < general::SHUANGPIN.len() => {
-                self.save("general", "shuangpin", general::SHUANGPIN[i].1);
+            Message::Shuangpin(Some(i)) => {
+                // 数据源是现扫的，下拉每次换选都整条重建，免得控件还停在上一次点的位置
+                self.shuangpin_revision += 1;
+                shuangpin::select(self, i);
             }
             Message::Zhuyin(on) => self.save("general", "zhuyin", on),
             Message::EnglishCandidates(on) => self.save("general", "english_candidates", on),

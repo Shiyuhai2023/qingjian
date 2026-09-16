@@ -3,21 +3,13 @@
 use qingjian_platform::MAX_PAGE_SIZE;
 use windows_reactor::*;
 
-use crate::panel::controls::{field, index_of, page};
+use super::shuangpin;
+use crate::panel::controls::{feedback, field, index_of, page};
 use crate::panel::{Message, Settings};
 
 /// 学习语言：界面名 + 配置写法。
 pub(crate) const LANGUAGES: [(&str, &str); 3] =
     [("英语", "en"), ("日语", "ja"), ("西班牙语", "es")];
-
-/// 双拼方案：界面名 + 配置写法（空串为全拼）。
-pub(crate) const SHUANGPIN: [(&str, &str); 5] = [
-    ("全拼（不启用双拼）", ""),
-    ("小鹤双拼", "xiaohe"),
-    ("自然码", "ziranma"),
-    ("微软双拼", "microsoft"),
-    ("搜狗双拼", "sogou"),
-];
 
 fn string_combo(
     options: &'static [(&str, &str)],
@@ -28,6 +20,25 @@ fn string_combo(
         .items_source(options.iter().map(|(label, _)| *label))
         .selected_index(index_of(options, current))
         .on_selection_changed(callback)
+}
+
+/// 双拼下拉：选项现扫（内置四套 + 导入过的自定义方案 +「自定义…」），按当前写法选中。
+///
+/// 控件 key 里带重建计数，换一次选就整条重建：WinUI 的选中项是控件自己的状态，
+/// 只有重建才能保证「自定义…」导入成功（或取消）后界面停在配置里的真实值上。
+fn shuangpin_combo(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
+    let choices = shuangpin::choices(settings);
+    let combo = ComboBox::new()
+        .items_source(choices.iter().map(|choice| choice.label()))
+        .selected_index(shuangpin::selected_index(
+            &choices,
+            &settings.config.general.shuangpin,
+        ))
+        .on_selection_changed(context.callback(Message::Shuangpin));
+    StackPanel::new().keyed_children([KeyedView::new(
+        format!("shuangpin-{}", settings.shuangpin_revision),
+        combo,
+    )])
 }
 
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
@@ -54,12 +65,8 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "双拼",
-            "开双拼后 v、u、i 是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing。",
-            string_combo(
-                &SHUANGPIN,
-                &g.shuangpin,
-                context.callback(Message::Shuangpin),
-            ),
+            "开双拼后 v、u、i 是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing。选「自定义…」导入 Rime 的双拼方案（.schema.yaml），导入的方案按名字排在内置四套后面。",
+            shuangpin_combo(settings, context),
         ),
         field(
             "大千注音",
@@ -97,6 +104,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 .is_enabled(g.english_candidates)
                 .on_toggled(context.callback(Message::EnglishOffInApps)),
         ),
+        feedback(&settings.notice),
     ];
     page("通用", StackPanel::new().spacing(16.0).children(rows))
 }

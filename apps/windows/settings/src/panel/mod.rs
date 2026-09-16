@@ -48,6 +48,10 @@ pub(crate) struct Settings {
 
     /// 页面底部的临时提示（导入统计 / 失败原因）。
     notice: Notice,
+
+    /// 「通用」页双拼下拉的重建计数：换选后自增，下拉整条重建（数据源是现扫的，
+    /// 选中「自定义…」后不管导入成功还是取消，界面都要回到配置里的真实值）。
+    shuangpin_revision: u64,
 }
 
 impl Settings {

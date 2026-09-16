@@ -9,6 +9,7 @@ pub(crate) enum Message {
     // 通用页
     LearningLanguage(Option<usize>),
     PageSize(Option<f64>),
+    /// 双拼方案下标；末项是「自定义…」（开文件选择器导入，不落盘它本身）。
     Shuangpin(Option<usize>),
     Zhuyin(bool),
     EnglishCandidates(bool),
