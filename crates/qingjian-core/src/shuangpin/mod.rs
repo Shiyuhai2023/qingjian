@@ -7,11 +7,32 @@
 //! 四套方案的键位表按 Rime 的 `double_pinyin*.schema.yaml` 核对（搜狗方案来自 rime-ice 的整理），
 //! 见 [`Scheme`] 的各表；每套方案对全部音节做往返测试。
 
+mod custom;
 mod decoded;
 mod scheme;
 mod table;
 mod unit;
 
+use crate::parser;
+
+pub use custom::CustomScheme;
 pub use decoded::Decoded;
 pub use scheme::Scheme;
 pub use unit::Unit;
+
+/// 全部拼音音节与各自声母长度（0 = 零声母）：自定义双拼导入时喂给求值器（issue #8 卷 I 第 6 章）。
+pub fn syllable_entries() -> Vec<(&'static str, usize)> {
+    parser::SYLLABLES
+        .iter()
+        .map(|syllable| {
+            let initial_len = parser::INITIALS
+                .iter()
+                .copied()
+                .filter(|initial| syllable.starts_with(initial))
+                .map(|initial| initial.len())
+                .max()
+                .unwrap_or(0);
+            (*syllable, initial_len)
+        })
+        .collect()
+}

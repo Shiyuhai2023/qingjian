@@ -241,13 +241,15 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
             scheme.clone()
         };
     }
-    if let Some(scheme) = config.general.shuangpin() {
+    // 数据目录就是当前目录：自定义双拼产物在 ./shuangpin/
+    let shuangpin_dir = std::path::PathBuf::from("shuangpin");
+    if let Some(scheme) = config.general.shuangpin_with(Some(&shuangpin_dir)) {
         tracing::info!(%scheme, "双拼已启用");
     }
     if config.general.zhuyin {
         tracing::info!("大千注音已启用");
     }
-    engine.set_shuangpin(config.general.shuangpin());
+    engine.set_shuangpin(config.general.shuangpin_with(Some(&shuangpin_dir)));
     engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_aux_code_key(config.general.aux_code_key());
     if !args.aux_table.is_empty() {

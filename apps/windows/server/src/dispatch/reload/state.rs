@@ -26,6 +26,9 @@ pub(crate) struct ConfigReload {
     /// 用户导入码表目录（`<用户目录>/codes`）。
     pub(super) user_codes_dir: Option<PathBuf>,
 
+    /// 自定义双拼产物目录（`<用户目录>/shuangpin`）。
+    pub(super) shuangpin_dir: Option<PathBuf>,
+
     /// 上次看到的码表目录 mtime：设置页刚导入一张表就靠它即时生效。
     pub(super) codes_mtime: Option<SystemTime>,
 

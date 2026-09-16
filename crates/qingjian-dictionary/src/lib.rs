@@ -20,6 +20,7 @@ mod error;
 pub mod import;
 mod matching;
 mod pattern;
+mod shuangpin;
 mod word_list;
 
 pub use code_table::{
@@ -30,4 +31,7 @@ pub use dictionary::Dictionary;
 pub use error::DictionaryError;
 pub use matching::Match;
 pub use pattern::{SyllablePattern, canonical_syllable};
+pub use shuangpin::{
+    ShuangpinImport, ShuangpinImportReport, ShuangpinTables, import_shuangpin, load_shuangpin,
+};
 pub use word_list::WordList;

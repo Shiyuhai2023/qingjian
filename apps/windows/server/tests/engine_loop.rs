@@ -65,7 +65,7 @@ fn router_in(config: RouterConfig, app: Option<String>) -> Router {
     })
     .expect("assemble engine from sample data");
     // 与 main.rs 一样，双拼方案是启动时直接设给 Engine 的。
-    engine.set_shuangpin(config.shuangpin);
+    engine.set_shuangpin(config.shuangpin.clone());
     let mut router = Router::new(engine, config);
     assert_eq!(
         router.handle(ClientMessage::OpenSession {
@@ -1370,6 +1370,7 @@ fn a_new_code_table_in_the_user_dir_hot_reloads() {
         None,
         None,
         Some(codes.clone()),
+        None,
     );
 
     // 目录还空着：进辅码态敲码筛掉一切

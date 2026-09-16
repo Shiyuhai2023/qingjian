@@ -52,6 +52,8 @@ foldhash = "0.2.0"
 # .qj 数据容器：mmap 打开、结构体数组零拷贝读取
 memmap2 = "0.9"
 zerocopy = { version = "0.8", features = ["derive"] }
+# 自定义双拼的投影链求值（导入期一次；Rime 代数规则的正则）
+regex = "1.13.1"
 
 # 本地神经语言模型推理（字级 Transformer，权重 safetensors）
 candle-core = "0.11.0"

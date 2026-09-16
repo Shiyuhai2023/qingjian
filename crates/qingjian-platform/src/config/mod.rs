@@ -181,7 +181,8 @@ english_full_width_punctuation = false
 aux_code_key = ";"
 # 候选上是否显示码（与译文拼成一条注记，如「鹤 rbm · crane」）。缺省关
 aux_code_show = false
-# 双拼方案：留空为全拼；xiaohe 小鹤 / ziranma 自然码 / microsoft 微软 / sogou 搜狗
+# 双拼方案：留空为全拼；xiaohe 小鹤 / ziranma 自然码 / microsoft 微软 / sogou 搜狗；
+# 自定义方案写成 custom:<名字>（「通用」页导入的，名字与导入时一致，文件在配置同目录 shuangpin/ 下）
 # 开着时 v / u / i 都是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing
 shuangpin = ""
 # 日志级别：info 缺省 / debug 详细（会记录敲的拼音与上屏的文字，配合作者排查问题时再开）。日志在 ~/Library/Logs/Qingjian/

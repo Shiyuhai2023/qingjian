@@ -95,6 +95,7 @@ impl Engine {
             "zhuyin".to_owned()
         } else {
             self.shuangpin
+                .as_ref()
                 .map_or_else(String::new, |s| s.key().to_owned())
         }
     }
@@ -251,7 +252,7 @@ impl Engine {
         is_raw(
             self.composition.text(),
             self.modes(),
-            self.shuangpin,
+            self.shuangpin.as_ref(),
             self.zhuyin,
         )
     }

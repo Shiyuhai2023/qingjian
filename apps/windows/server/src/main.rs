@@ -187,14 +187,15 @@ fn main() {
             std::process::exit(1);
         }
     };
+    let shuangpin_dir = user_dir().map(|dir| dir.join("shuangpin"));
     engine.set_fuzzy(config.fuzzy);
-    engine.set_shuangpin(config.general.shuangpin());
+    engine.set_shuangpin(config.general.shuangpin_with(shuangpin_dir.as_deref()));
     engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_mode_keys(config.shortcut.mode);
     engine.set_aux_code_key(config.general.aux_code_key());
     engine.log_session(env!("CARGO_PKG_VERSION"), "windows");
     dispatch::attach_cloud(&mut engine, &config.predict);
-    let router_config = RouterConfig::from(&config);
+    let router_config = RouterConfig::from_config(&config, shuangpin_dir.as_deref());
     let mut router = Router::new(engine, router_config.clone());
     let model_path = dispatch::find_model(user_dir().as_deref(), &root);
     router.configure_local_model(model_path.clone(), &config.model);
@@ -207,6 +208,7 @@ fn main() {
             bundled_codes_dir,
             assembly::user_dicts_dir(user.as_deref()),
             assembly::user_codes_dir(user.as_deref()),
+            shuangpin_dir,
         );
     }
     tracing::info!(
@@ -217,7 +219,7 @@ fn main() {
         page_keys = %format!("{}{}", router_config.page_keys.0, router_config.page_keys.1),
         layout = router_config.layout.key(),
         theme = router_config.theme.key(),
-        shuangpin = config.general.shuangpin().map(|s| s.key()).unwrap_or("全拼"),
+        shuangpin = router_config.shuangpin.as_ref().map_or("全拼", |s| s.key()),
         fuzzy = config.fuzzy.any(),
         cloud = config.predict.enabled,
         model = model_path.as_deref().map(|p| p.display().to_string()).unwrap_or_default(),

@@ -46,4 +46,4 @@ pub use history::InputHistory;
 pub use parser::{ParseError, Segmentation};
 pub use punctuation::Punctuation;
 pub use qingjian_dictionary as dictionary;
-pub use shuangpin::Scheme as ShuangpinScheme;
+pub use shuangpin::{CustomScheme, Scheme as ShuangpinScheme, syllable_entries};

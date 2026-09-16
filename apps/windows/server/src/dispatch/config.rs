@@ -69,6 +69,13 @@ impl RouterConfig {
 
 impl From<&Config> for RouterConfig {
     fn from(config: &Config) -> Self {
+        Self::from_config(config, None)
+    }
+}
+
+impl RouterConfig {
+    /// 与 `From<&Config>` 同；`custom:<名字>` 的双拼方案从 `shuangpin_dir`（用户数据目录的 `shuangpin/`）加载。
+    pub fn from_config(config: &Config, shuangpin_dir: Option<&std::path::Path>) -> Self {
         Self {
             page_size: config.general.page_size(),
             cloud_slots: config.predict.slots,
@@ -88,7 +95,7 @@ impl From<&Config> for RouterConfig {
             translate_selection: config.shortcut.translate_selection,
             status_enabled: config.status_bar.enabled,
             status_pos: config.status_bar.x.zip(config.status_bar.y),
-            shuangpin: config.general.shuangpin(),
+            shuangpin: config.general.shuangpin_with(shuangpin_dir),
             aux_code_key: config.general.aux_code_key(),
             aux_code_show: config.general.aux_code_show,
         }

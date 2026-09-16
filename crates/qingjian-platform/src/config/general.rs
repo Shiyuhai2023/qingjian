@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use qingjian_core::ShuangpinScheme;
 use serde::{Deserialize, Serialize};
 
@@ -90,11 +92,40 @@ impl Default for GeneralConfig {
 }
 
 impl GeneralConfig {
-    /// 双拼方案；没开或写得不认识时为 `None`（全拼）。
+    /// 双拼方案；没开或写得不认识时为 `None`（全拼）。`custom:<名字>` 需要目录，见 [`Self::shuangpin_with`]。
     pub fn shuangpin(&self) -> Option<ShuangpinScheme> {
+        self.shuangpin_with(None)
+    }
+
+    /// 同 [`Self::shuangpin`]；写的是 `custom:<名字>` 时从 `custom_dir` 读 `<名字>.tsv` 产物
+    /// （issue #8 卷 I 第 6 章），文件缺失 / 读不了按全拼并告警——自定义方案不阻塞输入。
+    pub fn shuangpin_with(&self, custom_dir: Option<&Path>) -> Option<ShuangpinScheme> {
         let key = self.shuangpin.trim();
         if key.is_empty() {
             return None;
+        }
+        if let Some(name) = key.strip_prefix("custom:") {
+            let name = name.trim();
+            if name.is_empty() {
+                tracing::warn!("空的 custom: 双拼方案名，按全拼");
+                return None;
+            }
+            let Some(dir) = custom_dir else {
+                tracing::warn!(name, "custom: 双拼方案需要 shuangpin/ 目录，按全拼");
+                return None;
+            };
+            return match qingjian_dictionary::load_shuangpin(&dir.join(format!("{name}.tsv"))) {
+                Ok(tables) => Some(ShuangpinScheme::custom(qingjian_core::CustomScheme {
+                    name: tables.name,
+                    finals: tables.finals,
+                    zero_initials: tables.zero_initials,
+                    semicolon: tables.semicolon,
+                })),
+                Err(error) => {
+                    tracing::warn!(name, %error, "自定义双拼方案读不了，按全拼");
+                    None
+                }
+            };
         }
         match key.parse() {
             Ok(scheme) => Some(scheme),
@@ -181,5 +212,39 @@ mod tests {
         assert_eq!(general.shuangpin(), Some(ShuangpinScheme::Sogou));
         general.shuangpin = "flypy".to_owned();
         assert_eq!(general.shuangpin(), None);
+    }
+
+    /// `custom:<名字>`：从 `shuangpin/<名字>.tsv` 读产物；文件缺失按全拼。
+    #[test]
+    fn custom_shuangpin_loads_from_the_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "qingjian-platform-shuangpin-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let tables = qingjian_dictionary::ShuangpinTables {
+            name: "迷你".to_owned(),
+            finals: vec![('d', vec!["ai".to_owned()])],
+            zero_initials: vec![("ai".to_owned(), vec!["ad".to_owned()])],
+            semicolon: false,
+        };
+        std::fs::write(dir.join("迷你.tsv"), tables.to_tsv()).unwrap();
+
+        let mut general = GeneralConfig::default();
+        general.shuangpin = "custom:迷你".to_owned();
+        // 不给目录就退回全拼（macOS 侧还没接自定义方案目录）
+        assert_eq!(general.shuangpin(), None);
+        let scheme = general.shuangpin_with(Some(&dir)).unwrap();
+        assert_eq!(scheme.key(), "迷你");
+        assert_eq!(scheme.label(), "迷你");
+        // 解出来的确实是那张表：两键 ad → ai
+        assert_eq!(scheme.decode("ad").pinyin(), "ai");
+
+        general.shuangpin = "custom:没有这个".to_owned();
+        assert_eq!(general.shuangpin_with(Some(&dir)), None);
+        general.shuangpin = "custom:".to_owned();
+        assert_eq!(general.shuangpin_with(Some(&dir)), None);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

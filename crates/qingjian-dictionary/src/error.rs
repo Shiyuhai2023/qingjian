@@ -29,4 +29,16 @@ pub enum DictionaryError {
     /// 一份码表里一条可用的码都没有（不是码表文件，或码列全非法）。
     #[error("no usable code entries in this file")]
     NoCodeEntries,
+
+    /// 自定义双拼：schema 没有方案名。
+    #[error("shuangpin schema has no name")]
+    NoSchemeName,
+
+    /// 自定义双拼：方案名与内置四套冲突。
+    #[error("shuangpin scheme name conflicts with a built-in scheme: {0:?}")]
+    SchemeNameConflict(String),
+
+    /// 自定义双拼：一条可用的投影规则都没有，或求值后一张表都没出。
+    #[error("shuangpin schema has no usable rules")]
+    NoUsableRules,
 }

@@ -67,6 +67,7 @@ impl Router {
         bundled_codes_dir: Option<PathBuf>,
         user_dicts_dir: Option<PathBuf>,
         user_codes_dir: Option<PathBuf>,
+        shuangpin_dir: Option<PathBuf>,
     ) {
         let last_mtime = mtime(&config_path);
         let codes_mtime = user_codes_dir.as_deref().and_then(mtime);
@@ -77,6 +78,7 @@ impl Router {
             bundled_codes_dir,
             user_dicts_dir,
             user_codes_dir,
+            shuangpin_dir,
             codes_mtime,
             last_mtime,
             applied_predict: config.predict.clone(),
@@ -126,12 +128,18 @@ impl Router {
 
     /// 应用新配置。学习语言变了仍需重启（要换释义表 / 等级表）。
     fn apply_config(&mut self, config: &Config) {
+        let shuangpin_dir = self
+            .reload
+            .as_ref()
+            .and_then(|reload| reload.shuangpin_dir.clone());
         self.engine.set_fuzzy(config.fuzzy);
-        self.engine.set_shuangpin(config.general.shuangpin());
+        // custom:<名字> 的双拼方案从用户目录 shuangpin/ 读产物
+        self.engine
+            .set_shuangpin(config.general.shuangpin_with(shuangpin_dir.as_deref()));
         self.engine.set_zhuyin_mode(config.general.zhuyin);
         self.engine.set_mode_keys(config.shortcut.mode);
         self.engine.set_aux_code_key(config.general.aux_code_key());
-        self.config = RouterConfig::from(config);
+        self.config = RouterConfig::from_config(config, shuangpin_dir.as_deref());
         self.reconcile_status();
         self.apply_model_config(&config.model);
 

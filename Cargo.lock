@@ -2227,6 +2227,7 @@ name = "qingjian-dictionary"
 version = "0.1.1"
 dependencies = [
  "qingjian-format",
+ "regex",
  "thiserror 2.0.20",
  "tracing",
  "zerocopy",

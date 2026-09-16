@@ -24,7 +24,7 @@ impl Engine {
     }
 
     pub fn shuangpin(&self) -> Option<Scheme> {
-        self.shuangpin
+        self.shuangpin.clone()
     }
 
     /// 挂上辅码码表（用户导入的与随包的笔画表）。照 [`Self::set_extra_dictionaries`] 的模式：壳按目录与配置装配。
@@ -88,6 +88,7 @@ impl Engine {
             .modes()
             .question_body(self.composition.scope(), self.zhuyin);
         self.shuangpin
+            .as_ref()
             .filter(|scheme| scheme.uses_semicolon())
             .is_some_and(|scheme| scheme.decode(body).pending_initial())
     }
@@ -107,6 +108,7 @@ impl Engine {
             Some(EngineDecoded::Zhuyin(crate::zhuyin::decode(keys)))
         } else {
             self.shuangpin
+                .as_ref()
                 .map(|scheme| EngineDecoded::Shuangpin(scheme.decode(keys)))
         }
     }

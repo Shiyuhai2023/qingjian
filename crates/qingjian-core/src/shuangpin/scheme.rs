@@ -1,15 +1,15 @@
 use std::fmt;
 use std::str::FromStr;
+use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-
+use super::custom::CustomScheme;
 use super::table::{self, DIGRAPH_INITIALS, Table};
 use super::{Decoded, Unit};
 use crate::parser;
 
-/// 双拼方案。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+/// 双拼方案。内置四套的键位表是静态的，自定义方案（[\`Self::Custom\`]）的表数据在导入期求值、
+/// 随方案一起带着走，所以这个枚举不是 `Copy`。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scheme {
     /// 小鹤双拼。
     Xiaohe,
@@ -22,53 +22,69 @@ pub enum Scheme {
 
     /// 搜狗双拼。
     Sogou,
+
+    /// 用户导入的自定义方案（issue #8 卷 I 第 6 章）。
+    Custom(Arc<CustomScheme>),
 }
 
 impl Scheme {
-    /// 全部方案，设置界面按这个顺序列出。
+    /// 全部**内置**方案，设置界面按这个顺序列出；自定义方案从导入目录扫出来排在后面。
     pub const ALL: [Self; 4] = [Self::Xiaohe, Self::Ziranma, Self::Microsoft, Self::Sogou];
 
-    /// 配置文件里的写法。
-    pub fn key(self) -> &'static str {
+    /// 包一个自定义方案（导入的静态键位表）。
+    pub fn custom(scheme: CustomScheme) -> Self {
+        Self::Custom(Arc::new(scheme))
+    }
+
+    /// 配置文件里的写法；自定义方案返回它的名字（配置里写成 `custom:<名字>`）。
+    pub fn key(&self) -> &str {
         match self {
             Self::Xiaohe => "xiaohe",
             Self::Ziranma => "ziranma",
             Self::Microsoft => "microsoft",
             Self::Sogou => "sogou",
+            Self::Custom(scheme) => scheme.name(),
         }
     }
 
-    /// 界面上的名字。
-    pub fn label(self) -> &'static str {
+    /// 界面上的名字；自定义方案就是导入时的方案名。
+    pub fn label(&self) -> &str {
         match self {
             Self::Xiaohe => "小鹤双拼",
             Self::Ziranma => "自然码",
             Self::Microsoft => "微软双拼",
             Self::Sogou => "搜狗双拼",
+            Self::Custom(scheme) => scheme.name(),
         }
     }
 
-    fn table(self) -> &'static Table {
+    /// 内置方案的键位表；自定义方案查自己的数据（[\`CustomScheme\`]），不走这里。
+    fn table(&self) -> &'static Table {
         match self {
             Self::Xiaohe => &table::XIAOHE,
             Self::Ziranma => &table::ZIRANMA,
             Self::Microsoft => &table::MICROSOFT,
             Self::Sogou => &table::SOGOU,
+            Self::Custom(_) => unreachable!("custom schemes carry their own tables"),
         }
     }
 
     /// 这套方案是否用到 `;` 键。
-    pub fn uses_semicolon(self) -> bool {
-        self.table().semicolon
+    pub fn uses_semicolon(&self) -> bool {
+        match self {
+            Self::Custom(scheme) => scheme.semicolon,
+            _ => self.table().semicolon,
+        }
     }
 
-    /// `c` 是不是这套方案的键：小写字母，微软 / 搜狗再加 `;`。
-    pub fn is_key(self, c: char) -> bool {
+    /// `c` 是不是这套方案的键：小写字母，用到 `;` 的方案（微软 / 搜狗 / 某些自定义）再加 `;`。
+    pub fn is_key(&self, c: char) -> bool {
         c.is_ascii_lowercase() || (c == ';' && self.uses_semicolon())
     }
 
     /// 键 `key` 当声母时是什么：`v` `i` `u` 是 zh ch sh，其他辅音（含 y w）是自己，元音键与 `;` 不是声母。
-    pub fn initial(self, key: char) -> Option<&'static str> {
+    /// 自定义方案与内置同款。
+    pub fn initial(&self, key: char) -> Option<&'static str> {
         if let Some((_, initial)) = DIGRAPH_INITIALS.iter().find(|(k, _)| *k == key) {
             return Some(initial);
         }
@@ -79,31 +95,49 @@ impl Scheme {
     }
 
     /// 键 `key` 当韵母时的候选韵母（按优先级）。
-    pub fn finals(self, key: char) -> &'static [&'static str] {
-        self.table()
-            .finals
-            .iter()
-            .find(|(k, _)| *k == key)
-            .map_or(&[], |(_, finals)| finals)
+    pub fn finals(&self, key: char) -> Vec<&str> {
+        match self {
+            Self::Custom(scheme) => scheme.finals(key),
+            _ => self
+                .table()
+                .finals
+                .iter()
+                .find(|(k, _)| *k == key)
+                .map_or(Vec::new(), |(_, finals)| finals.to_vec()),
+        }
     }
 
     /// 两个键拼成的音节；拼不出合法音节时为 `None`。
-    pub fn syllable(self, first: char, second: char) -> Option<String> {
+    pub fn syllable(&self, first: char, second: char) -> Option<String> {
         let pair = [first, second];
-        for (syllable, spellings) in self.table().zero_initials {
-            if spellings.iter().any(|s| s.chars().eq(pair.iter().copied())) {
-                return Some((*syllable).to_owned());
+        match self {
+            Self::Custom(scheme) => {
+                for (syllable, spellings) in &scheme.zero_initials {
+                    if spellings.iter().any(|s| s.chars().eq(pair.iter().copied())) {
+                        return Some(syllable.clone());
+                    }
+                }
+            }
+            _ => {
+                for (syllable, spellings) in self.table().zero_initials {
+                    if spellings.iter().any(|s| s.chars().eq(pair.iter().copied())) {
+                        return Some((*syllable).to_owned());
+                    }
+                }
             }
         }
         let initial = self.initial(first)?;
-        self.finals(second).iter().find_map(|final_| {
+        self.finals(second).into_iter().find_map(|final_| {
             let syllable = format!("{initial}{final_}");
             parser::is_syllable(&syllable).then_some(syllable)
         })
     }
 
     /// 一个全拼音节的主写法（两个键）。测试与文档用；拆成声母 + 韵母后查表，零声母查零声母表。
-    pub fn encode(self, syllable: &str) -> Option<[char; 2]> {
+    pub fn encode(&self, syllable: &str) -> Option<[char; 2]> {
+        if let Self::Custom(scheme) = self {
+            return scheme.encode(syllable);
+        }
         let table = self.table();
         if let Some((_, spellings)) = table.zero_initials.iter().find(|(s, _)| *s == syllable) {
             let mut chars = spellings[0].chars();
@@ -129,7 +163,7 @@ impl Scheme {
 
     /// 把敲的键翻成全拼。两键一组从左到右配对；配不出合法音节的位置起全部原样留作尾巴；
     /// 末尾落单的一键当声母（或元音）前缀；用户自己敲的 `'` 结束当前配对。
-    pub fn decode(self, keys: &str) -> Decoded {
+    pub fn decode(&self, keys: &str) -> Decoded {
         let chars: Vec<char> = keys.chars().collect();
         let mut units = Vec::with_capacity(chars.len() / 2 + 1);
         let mut index = 0;
@@ -163,7 +197,7 @@ impl Scheme {
     }
 
     /// 落单的一键代表的前缀：声母键是声母，元音键是元音本身（`a` 后面可能是 ai / an / ang / ao）。
-    fn partial(self, key: char) -> Option<String> {
+    fn partial(&self, key: char) -> Option<String> {
         if let Some(initial) = self.initial(key) {
             return Some(initial.to_owned());
         }

@@ -76,7 +76,7 @@ impl Engine {
         if self.modes().is_question(keys, self.zhuyin) {
             return Ok(self.query_question(keys, rest, start));
         }
-        if is_raw(keys, self.modes(), self.shuangpin, self.zhuyin) {
+        if is_raw(keys, self.modes(), self.shuangpin.as_ref(), self.zhuyin) {
             return Ok(self.query_raw(keys, rest, start));
         }
         // 双拼先解成全拼（音节间已用 `'` 连好，切分没有歧义），之后与全拼同路；解不动的键当尾巴
