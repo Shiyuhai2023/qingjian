@@ -94,7 +94,7 @@ pub(super) struct Evaluator {
 }
 
 impl Evaluator {
-    /// 编译规则链；编不过的进「未支持」统计。
+    /// 编译规则链；编不过的逐条进「未支持」清单。
     pub(super) fn compile(rule_texts: &[String], report: &mut ShuangpinImportReport) -> Self {
         let mut rules = Vec::new();
         for text in rule_texts {
@@ -104,7 +104,7 @@ impl Evaluator {
                     report.rules += 1;
                 }
                 None => {
-                    report.unsupported += 1;
+                    report.unsupported.push(text.clone());
                     tracing::warn!(%text, "双拼投影规则超出子集，跳过");
                 }
             }

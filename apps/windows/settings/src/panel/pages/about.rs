@@ -32,6 +32,10 @@ const ATTRIBUTIONS: &[(&str, &str)] = &[
         "词汇等级",
         "CEFR-J Wordlist v1.5（Yukio Tono，cefr-j.org）；Octanove Vocabulary Profile C1/C2（CC BY-SA 4.0）；JLPT 词表（tanos.co.uk，CC BY）。",
     ),
+    (
+        "笔画码表",
+        "CNS11643 全字庫筆順資料（中華民國數位發展部，政府資料開放授權條款第 1 版 / OFL-1.1）；大陆笔顺按通用规范字表校正。",
+    ),
 ];
 
 const PRIVACY_NOTE: &str = "青简不上传任何数据。开着云联想时，光标附近的文字与拼音会发给你在「云服务」页填的 AI 服务商（缺省 DeepSeek）的服务器，不经过作者。「高级」页的输入日志只写在本机，可以关掉或清空。";

@@ -96,9 +96,16 @@ fn evaluates_two_key_codes_into_finals_and_zero_initials() {
         ]
     );
     assert!(tables.semicolon);
-    // 8 条 xform / derive 认下，xlit 与带选项的规则各算一条「未支持」
+    // 8 条 xform / derive 认下，xlit 与带选项的规则各算一条「未支持」（逐条留证）
     assert_eq!(report.rules, 8);
-    assert_eq!(report.unsupported, 2);
+    assert_eq!(report.unsupported.len(), 2);
+    assert!(
+        report
+            .unsupported
+            .iter()
+            .any(|rule| rule.starts_with("xlit/"))
+    );
+    assert!(report.unsupported.iter().any(|rule| rule.contains(",%")));
     assert_eq!(report.finals, 4);
     assert_eq!(report.zero_initials, 3);
 }
@@ -129,7 +136,7 @@ fn unsupported_rules_are_skipped_not_fatal() {
     let text = "schema:\n  name: 杂\nspeller:\n  algebra:\n    - xform/^ai$/ad/\n    - erase/^x$/\n    - xlit/abc/def/\n";
     let (tables, report) = evaluate(text, &[("ai", 0)]);
     assert_eq!(report.rules, 1);
-    assert_eq!(report.unsupported, 2);
+    assert_eq!(report.unsupported.len(), 2);
     assert_eq!(
         tables.zero_initials,
         vec![("ai".to_owned(), vec!["ad".to_owned()])]

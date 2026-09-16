@@ -1,3 +1,5 @@
+//! 一次自定义双拼导入的结果。
+
 use std::path::PathBuf;
 
 use super::report::ShuangpinImportReport;

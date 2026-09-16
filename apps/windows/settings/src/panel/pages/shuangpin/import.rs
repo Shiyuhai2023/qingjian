@@ -23,14 +23,25 @@ pub(crate) fn run(settings: &mut Settings) {
         Ok(imported) => {
             let report = imported.report;
             settings.save("general", "shuangpin", format!("custom:{}", imported.name));
-            settings.notice.succeed(format!(
+            let mut text = format!(
                 "已导入双拼方案「{}」：规则 {} 条 · 未支持 {} 条 · 韵母键 {} 个 · 零声母 {} 个",
                 imported.name,
                 report.rules,
-                report.unsupported,
+                report.unsupported.len(),
                 report.finals,
                 report.zero_initials
-            ));
+            );
+            // 未支持的规则逐条列出（最多三条），用户能对着原方案找是哪几条没生效
+            for rule in report.unsupported.iter().take(3) {
+                text.push_str(&format!("\n未支持：{rule}"));
+            }
+            if report.unsupported.len() > 3 {
+                text.push_str(&format!(
+                    "\n… 另有 {} 条未支持",
+                    report.unsupported.len() - 3
+                ));
+            }
+            settings.notice.succeed(text);
         }
         Err(DictionaryError::NoSchemeName) => settings
             .notice

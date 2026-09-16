@@ -114,7 +114,9 @@ impl GeneralConfig {
                 tracing::warn!(name, "custom: 双拼方案需要 shuangpin/ 目录，按全拼");
                 return None;
             };
-            return match qingjian_dictionary::load_shuangpin(&dir.join(format!("{name}.tsv"))) {
+            // 文件名主干与导入侧共用同一个规则（名字里带路径字符时也读得到）
+            let path = dir.join(format!("{}.tsv", qingjian_dictionary::file_stem(name)));
+            return match qingjian_dictionary::load_shuangpin(&path) {
                 Ok(tables) => Some(ShuangpinScheme::custom(qingjian_core::CustomScheme {
                     name: tables.name,
                     finals: tables.finals,
@@ -242,6 +244,16 @@ mod tests {
         assert_eq!(scheme.label(), "迷你");
         // 解出来的确实是那张表：两键 ad → ai
         assert_eq!(scheme.decode("ad").pinyin(), "ai");
+
+        // 名字里带路径字符：写入侧落 `我_的.tsv`，读取侧必须按同一个规则拼（否则导得进读不出）
+        let slash = qingjian_dictionary::ShuangpinTables {
+            name: "我/的".to_owned(),
+            ..tables.clone()
+        };
+        std::fs::write(dir.join("我_的.tsv"), slash.to_tsv()).unwrap();
+        general.shuangpin = "custom:我/的".to_owned();
+        let scheme = general.shuangpin_with(Some(&dir)).unwrap();
+        assert_eq!(scheme.label(), "我/的");
 
         general.shuangpin = "custom:没有这个".to_owned();
         assert_eq!(general.shuangpin_with(Some(&dir)), None);
