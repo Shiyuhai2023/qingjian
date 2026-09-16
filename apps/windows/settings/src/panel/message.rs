@@ -59,6 +59,8 @@ pub(crate) enum Message {
     // 辅码页
     /// 候选上是否显示码。
     AuxCodeShow(bool),
+    /// 码删空后是否留在辅码态（`[general] aux_code_keep_empty`）。
+    AuxCodeKeepEmpty(bool),
     /// 点「录制」：进入等一个键的状态。
     AuxRecordStart,
     /// 录制中放弃，保持原值。

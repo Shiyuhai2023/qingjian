@@ -127,10 +127,17 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "候选上显示码",
-            "码与译文拼成一条注记，显示成「鹤 rbm · crane」。",
+            "码与译文拼成一条注记，显示成「鹤 rbm · crane」。开着时不用进辅码：纯拼音打字候选也带词的码（首条），方便边打边记。",
             ToggleSwitch::new()
                 .is_on(settings.config.general.aux_code_show)
                 .on_toggled(context.callback(Message::AuxCodeShow)),
+        ),
+        field(
+            "码删空后保持辅码",
+            "删空码后 ; 仍在、候选全部回来，再按一次退格才退出辅码；关掉则删空即回拼音态。",
+            ToggleSwitch::new()
+                .is_on(settings.config.general.aux_code_keep_empty)
+                .on_toggled(context.callback(Message::AuxCodeKeepEmpty)),
         ),
         TextBlock::new()
             .text("码表")

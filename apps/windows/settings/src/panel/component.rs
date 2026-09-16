@@ -174,6 +174,7 @@ impl Component for Settings {
 
             // 辅码页
             Message::AuxCodeShow(on) => self.save("general", "aux_code_show", on),
+            Message::AuxCodeKeepEmpty(on) => self.save("general", "aux_code_keep_empty", on),
             Message::AuxRecordStart => self.recorder = self.recorder.waiting(),
             Message::AuxRecordCancel => self.recorder = Recorder::Idle,
             Message::AuxRecorded(text) => aux_code::record_key(self, &text),
