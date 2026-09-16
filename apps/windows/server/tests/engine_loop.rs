@@ -1278,9 +1278,12 @@ fn aux_trigger_filters_candidates_and_marks_the_code_segment() {
     assert!(!frame.is_empty());
     assert_eq!(preedit(&frame), "kai'fa;kfq");
 
-    // 退格放宽（kfq → kf → k → 回拼音态），码段删空后纯拼音的候选全回来
+    // 退格放宽（kfq → kf → k → 空码段停在辅码态），候选全回来；再按一次退格才退出辅码
     press(&mut router, KeyEvent::new(0x08, None, Default::default()));
     press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    let (_, _, frame) = press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    assert_eq!(preedit(&frame), "kai'fa;");
+    assert_eq!(candidate_texts(&frame).len(), before);
     let (_, _, frame) = press(&mut router, KeyEvent::new(0x08, None, Default::default()));
     assert_eq!(preedit(&frame), "kai'fa");
     assert_eq!(candidate_texts(&frame).len(), before);
@@ -1340,7 +1343,7 @@ fn aux_code_show_rides_the_frame() {
     assert!(frame.aux_code_show);
 }
 
-/// 码段用完删到空之后，纯拼音的候选一条不少地回来。
+/// 码段用完删到空之后：停在辅码态、纯拼音的候选一条不少地回来；再按一次退格才退出辅码。
 #[test]
 fn deleting_the_whole_code_brings_every_candidate_back() {
     let mut router = aux_router();
@@ -1350,6 +1353,9 @@ fn deleting_the_whole_code_brings_every_candidate_back() {
     press(&mut router, letter('k'));
     press(&mut router, letter('f'));
     press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    let (_, _, frame) = press(&mut router, KeyEvent::new(0x08, None, Default::default()));
+    assert_eq!(preedit(&frame), "kai'fa;");
+    assert_eq!(candidate_texts(&frame).len(), before);
     let (_, _, frame) = press(&mut router, KeyEvent::new(0x08, None, Default::default()));
     assert_eq!(preedit(&frame), "kai'fa");
     assert_eq!(candidate_texts(&frame).len(), before);

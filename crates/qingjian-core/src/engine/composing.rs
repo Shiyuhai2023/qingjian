@@ -153,12 +153,15 @@ impl Engine {
         self.composition.push(c);
     }
 
-    /// 退格。辅码态里删的是码段：删掉最后一个码字母，删空即回拼音态（无码词立刻回来）；
-    /// 码段本来就空（刚敲下触发键）时退出辅码态、拼音一个字符都不动。两种情况的候选都当场重筛。
+    /// 退格。辅码态里删的是码段：删掉最后一个码字母；删空时按「码删空后留在辅码态」开关分岔——
+    /// 开（缺省）停在辅码态（`;` 仍在、无码词也回来），关则回拼音态。码段本来就空（刚触发，或删空停住）
+    /// 时按退格 = 退出辅码态、拼音一个字符都不动。每次退格候选都当场重筛。
     pub fn backspace(&mut self) -> bool {
         if let Some(code) = self.aux_code.take() {
             if code.len() > 1 {
                 self.aux_code = Some(code[..code.len() - 1].to_owned());
+            } else if code.len() == 1 && self.aux_keep_empty {
+                self.aux_code = Some(String::new());
             }
             return true;
         }

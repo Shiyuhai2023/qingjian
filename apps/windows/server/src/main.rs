@@ -193,6 +193,7 @@ fn main() {
     engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_mode_keys(config.shortcut.mode);
     engine.set_aux_code_key(config.general.aux_code_key());
+    engine.set_aux_keep_empty(config.general.aux_code_keep_empty);
     engine.log_session(env!("CARGO_PKG_VERSION"), "windows");
     dispatch::attach_cloud(&mut engine, &config.predict);
     let router_config = RouterConfig::from_config(&config, shuangpin_dir.as_deref());

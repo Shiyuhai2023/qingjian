@@ -52,6 +52,11 @@ impl Engine {
         };
     }
 
+    /// 换「码删空后留在辅码态」开关（配置项 `[general] aux_code_keep_empty`，缺省开）。
+    pub fn set_aux_keep_empty(&mut self, keep: bool) {
+        self.aux_keep_empty = keep;
+    }
+
     /// 設置是否啟用注音模式。開啟後鍵盤輸入按大千佈局解析。
     pub fn set_zhuyin_mode(&mut self, on: bool) {
         self.zhuyin = on;

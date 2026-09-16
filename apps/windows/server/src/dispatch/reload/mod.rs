@@ -127,6 +127,8 @@ impl Router {
         self.engine.set_zhuyin_mode(config.general.zhuyin);
         self.engine.set_mode_keys(config.shortcut.mode);
         self.engine.set_aux_code_key(config.general.aux_code_key());
+        self.engine
+            .set_aux_keep_empty(config.general.aux_code_keep_empty);
         self.config = RouterConfig::from_config(config, shuangpin_dir.as_deref());
         self.reconcile_status();
         self.apply_model_config(&config.model);

@@ -41,7 +41,7 @@ impl Engine {
         self.aux_code.as_deref().unwrap_or_default()
     }
 
-    /// 是否在辅码态。码段为空也算：刚敲下触发键、候选还没开始筛。
+    /// 是否在辅码态。码段为空也算：刚敲下触发键、候选还没开始筛，或删空码段停在辅码态（开关开着）。
     pub fn in_aux(&self) -> bool {
         self.aux_code.is_some()
     }
@@ -70,7 +70,7 @@ impl Engine {
         self.aux_code = None;
     }
 
-    /// 正在筛的码段：辅码态且码段非空时才有。码段空（刚触发）不过滤，候选不变。
+    /// 正在筛的码段：辅码态且码段非空时才有。码段空（刚触发或删空停住）不过滤，候选不变。
     pub(super) fn aux_filter(&self) -> Option<&str> {
         self.aux_code.as_deref().filter(|code| !code.is_empty())
     }

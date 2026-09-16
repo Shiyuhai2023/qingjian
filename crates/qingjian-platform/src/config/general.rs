@@ -55,6 +55,10 @@ pub struct GeneralConfig {
     /// 候选上是否显示码（与译文拼成一条注记）。缺省关：竖排会挤、横排更难放下。
     pub aux_code_show: bool,
 
+    /// 码段删空后是否留在辅码态：开（缺省）时 `;` 仍在、候选全部回来，空码段再按一次退格才退出；
+    /// 关则删空即回纯拼音态。
+    pub aux_code_keep_empty: bool,
+
     /// 双拼方案：空串为全拼，否则 `xiaohe` / `ziranma` / `microsoft` / `sogou`（见 [`ShuangpinScheme`]）。
     pub shuangpin: String,
 
@@ -83,6 +87,7 @@ impl Default for GeneralConfig {
             english_full_width_punctuation: false,
             aux_code_key: qingjian_core::DEFAULT_AUX_CODE_KEY.to_string(),
             aux_code_show: false,
+            aux_code_keep_empty: true,
             shuangpin: String::new(),
             zhuyin: false,
             log_level: LogLevel::default(),
@@ -202,6 +207,12 @@ mod tests {
             general.aux_code_key = bad.to_owned();
             assert_eq!(general.aux_code_key(), ';', "{bad}");
         }
+    }
+
+    /// 码删空保持辅码态的开关缺省开（`[general] aux_code_keep_empty`）。
+    #[test]
+    fn aux_code_keep_empty_defaults_on() {
+        assert!(GeneralConfig::default().aux_code_keep_empty);
     }
 
     #[test]

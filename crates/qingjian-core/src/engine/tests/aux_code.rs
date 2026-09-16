@@ -143,9 +143,10 @@ fn candidates_without_a_code_are_hidden() {
     assert_eq!(query.marked_text(), "kai'fa;khz");
 }
 
-/// 边界 6：退格删码段、逐键放宽；删空即回拼音态，无码词立刻回来。
+/// 边界 6：退格删码段、逐键放宽；删空停在辅码态（`aux_code_keep_empty` 缺省开）——
+/// `;` 仍在、无码词全部回来，空码段再按一次退格才退出、拼音一字不动。
 #[test]
-fn backspace_widens_then_leaves_aux_mode() {
+fn backspace_widens_then_stays_in_aux_mode() {
     let mut engine = aux_engine();
     engine.set_input("kaifa");
     let full = candidates(&engine);
@@ -160,6 +161,37 @@ fn backspace_widens_then_leaves_aux_mode() {
     assert!(engine.backspace());
     assert_eq!(engine.aux_code(), "k");
     assert_eq!(candidates(&engine), ["开发者", "开发", "开"]);
+    // 删到空：停在辅码态，`;` 仍在 preedit，候选全回来
+    assert!(engine.backspace());
+    assert!(engine.in_aux());
+    assert_eq!(engine.aux_code(), "");
+    assert_eq!(engine.query().unwrap().marked_text(), "kai'fa;");
+    assert_eq!(candidates(&engine), full);
+    // 再敲字母重新筛——辅码态还活着
+    assert!(engine.push_aux_code('k'));
+    assert_eq!(candidates(&engine), ["开发者", "开发", "开"]);
+    assert!(engine.backspace());
+    assert!(engine.in_aux());
+    // 空码段再按退格：退出辅码态，拼音一字不动
+    assert!(engine.backspace());
+    assert!(!engine.in_aux());
+    assert_eq!(engine.query().unwrap().marked_text(), "kai'fa");
+    assert_eq!(candidates(&engine), full);
+    assert_eq!(engine.composition().text(), "kaifa");
+}
+
+/// 边界 6b：`aux_code_keep_empty = false` 删空即回拼音态（开关关掉的旧行为）。
+#[test]
+fn backspace_leaves_aux_mode_when_keep_empty_is_off() {
+    let mut engine = aux_engine();
+    engine.set_aux_keep_empty(false);
+    engine.set_input("kaifa");
+    let full = candidates(&engine);
+    engine.enter_aux();
+    engine.push_aux_code('k');
+    engine.push_aux_code('f');
+    assert!(engine.backspace());
+    assert_eq!(engine.aux_code(), "k");
     // 删到空：回拼音态，`;` 从 preedit 消失，候选全回来
     assert!(engine.backspace());
     assert!(!engine.in_aux());

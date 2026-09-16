@@ -181,6 +181,8 @@ english_full_width_punctuation = false
 aux_code_key = ";"
 # 候选上是否显示码（与译文拼成一条注记，如「鹤 rbm · crane」）。缺省关
 aux_code_show = false
+# 码段删空后是否留在辅码状态：true 删空后 ; 仍在、候选全部回来，再按一次退格才退出辅码；false 删空即回拼音状态
+aux_code_keep_empty = true
 # 双拼方案：留空为全拼；xiaohe 小鹤 / ziranma 自然码 / microsoft 微软 / sogou 搜狗；
 # 自定义方案写成 custom:<名字>（「通用」页导入的，名字与导入时一致，文件在配置同目录 shuangpin/ 下）
 # 开着时 v / u / i 都是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing

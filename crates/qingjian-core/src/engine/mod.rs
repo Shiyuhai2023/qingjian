@@ -242,6 +242,10 @@ pub struct Engine {
     /// 进辅码态的触发键，配置项 `[general] aux_code_key`，缺省 [`DEFAULT_AUX_CODE_KEY`]。
     aux_code_key: char,
 
+    /// 码段删空后是否留在辅码态（配置项 `[general] aux_code_keep_empty`，缺省开）：开 = 删空停在
+    /// 辅码态（`;` 仍在、候选全回），空码段再按一次退格才退出；关 = 删空即回拼音态。
+    aux_keep_empty: bool,
+
     /// 辅码码表，壳按用户目录 `codes/` 与配置装配；空表示没装码表（辅码态筛不出任何词）。
     aux_codes: Vec<Arc<dyn AuxCodeLookup>>,
 }
@@ -376,6 +380,7 @@ impl Engine {
             emoji: None,
             aux_code: None,
             aux_code_key: DEFAULT_AUX_CODE_KEY,
+            aux_keep_empty: true,
             aux_codes: Vec::new(),
         }
     }

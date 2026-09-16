@@ -268,6 +268,7 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
     engine.set_shuangpin(config.general.shuangpin_with(Some(&shuangpin_dir)));
     engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_aux_code_key(config.general.aux_code_key());
+    engine.set_aux_keep_empty(config.general.aux_code_keep_empty);
     if !args.aux_table.is_empty() {
         let mut tables: Vec<Arc<dyn AuxCodeLookup>> = Vec::new();
         for path in &args.aux_table {
