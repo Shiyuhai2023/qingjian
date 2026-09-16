@@ -11,6 +11,7 @@ use qingjian_platform::{Config, code_tables, extra_dictionaries};
 use qingjian_predict::{CloudGlossFiller, CloudPredictor, PredictConfig};
 
 pub(super) use self::state::ConfigReload;
+pub use self::state::DataDirs;
 
 /// 看配置文件 mtime 的最短间隔；工人循环空闲时按它等，重排的短节拍来得更勤时按这个节流。
 pub(super) const CONFIG_POLL_INTERVAL: Duration = Duration::from_secs(1);
@@ -57,28 +58,15 @@ impl Router {
             .map(|reload| reload.config_path.as_path())
     }
 
-    /// 开启热加载：记下路径与当前已应用的 predict / dictionaries / aux_code。
-    /// 词库与码表目录按启动同款语义传进来（`dicts/` / `codes/`），热加载与原路径一致才找得到文件。
-    pub fn watch_config(
-        &mut self,
-        config: &Config,
-        config_path: PathBuf,
-        bundled_dicts_dir: Option<PathBuf>,
-        bundled_codes_dir: Option<PathBuf>,
-        user_dicts_dir: Option<PathBuf>,
-        user_codes_dir: Option<PathBuf>,
-        shuangpin_dir: Option<PathBuf>,
-    ) {
+    /// 开启热加载：记下路径与当前已应用的 predict / dictionaries / aux_code，以及启动用的那批数据目录。
+    /// 目录必须与启动同款语义（`dicts/` / `codes/` / `shuangpin/`），热加载才找得到文件。
+    pub fn watch_config(&mut self, config: &Config, config_path: PathBuf, dirs: DataDirs) {
         let last_mtime = mtime(&config_path);
-        let codes_mtime = user_codes_dir.as_deref().and_then(mtime);
+        let codes_mtime = dirs.user_codes.as_deref().and_then(mtime);
         self.reload = Some(ConfigReload {
             config_path,
             last_check: Instant::now(),
-            bundled_dicts_dir,
-            bundled_codes_dir,
-            user_dicts_dir,
-            user_codes_dir,
-            shuangpin_dir,
+            dirs,
             codes_mtime,
             last_mtime,
             applied_predict: config.predict.clone(),
@@ -105,7 +93,7 @@ impl Router {
         };
         // 用户 `codes/` 目录变了（设置页刚导入 / 移除一张码表）：不必等配置改动，下一拍就生效
         let codes_changed = {
-            let current = reload.user_codes_dir.as_deref().and_then(mtime);
+            let current = reload.dirs.user_codes.as_deref().and_then(mtime);
             let changed = current != reload.codes_mtime;
             reload.codes_mtime = current;
             changed
@@ -131,7 +119,7 @@ impl Router {
         let shuangpin_dir = self
             .reload
             .as_ref()
-            .and_then(|reload| reload.shuangpin_dir.clone());
+            .and_then(|reload| reload.dirs.shuangpin.clone());
         self.engine.set_fuzzy(config.fuzzy);
         // custom:<名字> 的双拼方案从用户目录 shuangpin/ 读产物
         self.engine
@@ -152,8 +140,8 @@ impl Router {
         }
         if config.dictionaries != reload.applied_dictionaries {
             let dicts = extra_dictionaries::load(
-                reload.bundled_dicts_dir.as_deref(),
-                reload.user_dicts_dir.as_deref(),
+                reload.dirs.bundled_dicts.as_deref(),
+                reload.dirs.user_dicts.as_deref(),
                 &config.dictionaries,
             );
             tracing::info!(count = dicts.len(), "附加词库已热重装");
@@ -172,12 +160,12 @@ impl Router {
             return;
         };
         let tables = code_tables::load(
-            reload.bundled_codes_dir.as_deref(),
-            reload.user_codes_dir.as_deref(),
+            reload.dirs.bundled_codes.as_deref(),
+            reload.dirs.user_codes.as_deref(),
             &reload.applied_aux_code,
         );
         if let Some(reload) = &mut self.reload {
-            reload.codes_mtime = reload.user_codes_dir.as_deref().and_then(mtime);
+            reload.codes_mtime = reload.dirs.user_codes.as_deref().and_then(mtime);
         }
         tracing::info!(count = tables.len(), "辅码码表已重装");
         self.engine.set_aux_codes(tables);

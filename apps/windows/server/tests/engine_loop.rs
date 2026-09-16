@@ -11,7 +11,7 @@ use qingjian_platform::protocol::{
     ServerMessage, SessionId,
 };
 use qingjian_platform::{AppsConfig, Config, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS};
-use qingjian_windows_server::dispatch::{StatusEvent, StatusSink, StatusView};
+use qingjian_windows_server::dispatch::{DataDirs, StatusEvent, StatusSink, StatusView};
 use qingjian_windows_server::{AssemblySpec, Router, RouterConfig, assembly};
 
 const SESSION: SessionId = SessionId(1);
@@ -1366,11 +1366,10 @@ fn a_new_code_table_in_the_user_dir_hot_reloads() {
     router.watch_config(
         &Config::default(),
         dir.join("config.toml"),
-        None,
-        None,
-        None,
-        Some(codes.clone()),
-        None,
+        DataDirs {
+            user_codes: Some(codes.clone()),
+            ..DataDirs::default()
+        },
     );
 
     // 目录还空着：进辅码态敲码筛掉一切

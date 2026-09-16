@@ -231,8 +231,10 @@ mod tests {
         };
         std::fs::write(dir.join("迷你.tsv"), tables.to_tsv()).unwrap();
 
-        let mut general = GeneralConfig::default();
-        general.shuangpin = "custom:迷你".to_owned();
+        let mut general = GeneralConfig {
+            shuangpin: "custom:迷你".to_owned(),
+            ..GeneralConfig::default()
+        };
         // 不给目录就退回全拼（macOS 侧还没接自定义方案目录）
         assert_eq!(general.shuangpin(), None);
         let scheme = general.shuangpin_with(Some(&dir)).unwrap();

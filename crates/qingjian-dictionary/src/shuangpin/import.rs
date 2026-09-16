@@ -51,4 +51,3 @@ pub fn import_shuangpin(
         report,
     })
 }
-

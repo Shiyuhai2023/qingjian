@@ -204,11 +204,13 @@ fn main() {
         router.watch_config(
             &config,
             path,
-            bundled_dicts_dir,
-            bundled_codes_dir,
-            assembly::user_dicts_dir(user.as_deref()),
-            assembly::user_codes_dir(user.as_deref()),
-            shuangpin_dir,
+            dispatch::DataDirs {
+                bundled_dicts: bundled_dicts_dir,
+                bundled_codes: bundled_codes_dir,
+                user_dicts: assembly::user_dicts_dir(user.as_deref()),
+                user_codes: assembly::user_codes_dir(user.as_deref()),
+                shuangpin: shuangpin_dir,
+            },
         );
     }
     tracing::info!(

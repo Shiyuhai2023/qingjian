@@ -34,10 +34,7 @@ pub fn load_shuangpin(path: &Path) -> Result<ShuangpinTables, DictionaryError> {
 pub fn file_stem(name: &str) -> String {
     name.chars()
         .map(|c| {
-            if matches!(
-                c,
-                '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'
-            ) {
+            if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
                 '_'
             } else {
                 c
