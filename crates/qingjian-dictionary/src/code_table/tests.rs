@@ -6,6 +6,7 @@ use qingjian_format::{Container, Kind, Metadata};
 
 use super::parsed::ParsedTable;
 use super::{AuxCodeLookup, CodeTable, code_table_info, import_code_table};
+use crate::error::DictionaryError;
 
 /// 一次测试一个目录，结束删掉。
 struct TempDir(PathBuf);
@@ -250,4 +251,22 @@ fn tsv_parse_reads_word_and_code() {
     let table = CodeTable::parse("# 注释\n开发\tkf\n\n鹤\thn\n").unwrap();
     assert_eq!(table.len(), 2);
     assert!(CodeTable::parse("开发\tkf\n鹤\tH1\n").is_err());
+}
+
+/// 同一入口吃两种文本：Rime `.dict.yaml`（与导入同一套解析）与 `词\t码` TSV。
+#[test]
+fn reads_rime_dict_yaml_and_tsv_from_the_same_entry_point() {
+    let rime = "---\nname: 形码\ncolumns: [text, code, weight]\n...\n开发\tkf\t100\n开放\tkfang\n";
+    let table = CodeTable::from_text(rime).unwrap();
+    assert_eq!(table.len(), 2);
+    assert_eq!(table.code_with_prefix("开发", "k"), Some("kf"));
+
+    let tsv = "# 注释\n开发\tkf\n";
+    assert_eq!(CodeTable::from_text(tsv).unwrap().len(), 1);
+
+    // 纯词表（没有码列）报错，不静默出一张空表
+    assert!(matches!(
+        CodeTable::from_text("---\nname: 纯词表\ncolumns: [text, weight]\n...\n开发\t100\n"),
+        Err(DictionaryError::NoCodeEntries)
+    ));
 }

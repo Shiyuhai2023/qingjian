@@ -45,6 +45,22 @@ fn run() -> Result<(), CliError> {
     tracing::info!(total_ms = started.elapsed().as_millis(), "Engine 就绪");
     engine.set_english_mode(args.english_mode);
     tuning::apply(&mut engine, &args.tune)?;
+    // 查码：只看码表，不查词、不进交互
+    if !args.aux_query.is_empty() {
+        for word in &args.aux_query {
+            let codes: Vec<&str> = engine
+                .aux_codes()
+                .iter()
+                .flat_map(|table| table.codes_of(word))
+                .collect();
+            if codes.is_empty() {
+                println!("{word}\t（没有码）");
+            } else {
+                println!("{word}\t{}", codes.join(" "));
+            }
+        }
+        return Ok(());
+    }
     if let Some(path) = &args.replay {
         let report = replay::run(&mut engine, path, args.misses)?;
         print!("{report}");

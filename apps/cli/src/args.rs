@@ -54,6 +54,10 @@ pub struct Args {
     #[arg(long)]
     pub aux_table: Vec<PathBuf>,
 
+    /// 查码：打印这些词在已装码表里的全部码（配 --aux-table 用），逗号分隔或多次给；查完即退出
+    #[arg(long, value_delimiter = ',')]
+    pub aux_query: Vec<String>,
+
     /// 英文词表路径（中英混输）。缺省：data/generated/english.tsv 存在就用它，否则不启用
     #[arg(long)]
     pub english: Option<PathBuf>,

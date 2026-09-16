@@ -7,6 +7,7 @@ use qingjian_format::{Container, Kind, Metadata, Table, Text, Writer, hash};
 
 use super::entry::CodeEntry;
 use super::lookup::AuxCodeLookup;
+use super::parsed::ParsedTable;
 use crate::error::DictionaryError;
 
 /// `.qj` 里的分节：词文本 arena、码键 arena、条目表、词 → 条目区间的哈希索引。
@@ -132,14 +133,27 @@ impl CodeTable {
         Self::from_pairs(pairs)
     }
 
-    /// 按文件内容选加载方式：`.qj` 容器直接映射，否则当 `词\t码` 的 TSV 解析。
+    /// 按文件内容选加载方式：`.qj` 容器直接映射；文本再按内容分 Rime `.dict.yaml` 与 `词\t码` TSV。
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, DictionaryError> {
         let path = path.as_ref();
         if Container::is_qj(path) {
             Self::open(path)
         } else {
-            Self::parse(&std::fs::read_to_string(path)?)
+            Self::from_text(&std::fs::read_to_string(path)?)
         }
+    }
+
+    /// 解析码表文本：有 YAML 头（`---` 或 `name:` 打头）的按 Rime 规则读——与「导入码表」走同一套
+    /// 解析（`columns` / `import_tables` / 「有词无码」统计口径一致），其余按 `词\t码` 的 TSV 读。
+    pub fn from_text(text: &str) -> Result<Self, DictionaryError> {
+        if !looks_like_rime(text) {
+            return Self::parse(text);
+        }
+        let parsed = ParsedTable::parse(text);
+        if parsed.pairs.is_empty() {
+            return Err(DictionaryError::NoCodeEntries);
+        }
+        Self::from_pairs(parsed.pairs)
     }
 
     /// 打开 `.qj` 码表：映射四个分节，逐条校验偏移落在 arena 内、条目按词有序、哈希索引自洽。
@@ -267,8 +281,21 @@ impl CodeTable {
     }
 }
 
+/// 文本像不像 Rime 词库 / 码表：第一条非注释非空行是 `---` 或以 `name:` 打头。
+fn looks_like_rime(text: &str) -> bool {
+    text.lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !line.starts_with('#'))
+        .is_some_and(|line| line == "---" || line.starts_with("name:"))
+}
+
 impl AuxCodeLookup for CodeTable {
     fn code_with_prefix<'a>(&'a self, word: &str, prefix: &str) -> Option<&'a str> {
-        self.codes_of(word).find(|code| code.starts_with(prefix))
+        // inherent 的 codes_of 是迭代器版本，这里要用它（别递归回 trait）
+        CodeTable::codes_of(self, word).find(|code| code.starts_with(prefix))
+    }
+
+    fn codes_of<'a>(&'a self, word: &str) -> Vec<&'a str> {
+        CodeTable::codes_of(self, word).collect()
     }
 }
