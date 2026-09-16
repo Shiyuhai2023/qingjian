@@ -43,8 +43,9 @@ pub(crate) struct Settings {
     /// 「辅码」页的触发键录制状态。
     recorder: Recorder,
 
-    /// 触发键录制框：进了录制态把焦点交给它，用户不用再点一下。
-    record_box: ElementRef<TextBox>,
+    /// 触发键录制框（密码框：不走输入法，按 A–Z 直接进字符、不弹输入法候选窗）：
+    /// 进了录制态把焦点交给它，用户不用再点一下。
+    record_box: ElementRef<PasswordBox>,
 
     /// 页面底部的临时提示（导入统计 / 失败原因）。
     notice: Notice,

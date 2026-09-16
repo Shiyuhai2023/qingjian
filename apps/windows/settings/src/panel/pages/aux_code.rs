@@ -27,7 +27,8 @@ fn record_control(settings: &Settings, context: &mut ViewContext<Settings>) -> V
             .on_click(context.message(Message::AuxRecordStart))
             .content(settings.config.general.aux_code_key().to_string()),
         Recorder::Waiting { attempt } => {
-            // 录制框一轮一代：敲过一次键就重建，框里不留上一轮的字符
+            // 密码框承接按键：不走输入法，按 A–Z 不弹候选窗，字符直接进来（Shift 与键盘布局由系统处理）。
+            // 一轮一代：敲过一次键就重建，框里不留上一轮的字符
             let record_box = settings.record_box.clone();
             context.use_effect("aux-code-record", attempt, move || {
                 let _ = record_box.request_focus();
@@ -39,11 +40,12 @@ fn record_control(settings: &Settings, context: &mut ViewContext<Settings>) -> V
                 .keyed_children([
                     KeyedView::new(
                         format!("record-{attempt}"),
-                        TextBox::new()
+                        PasswordBox::new()
                             .element_ref(&settings.record_box)
                             .placeholder_text("请按一个键")
+                            .password_reveal_mode(PasswordRevealMode::Hidden)
                             .width(160.0)
-                            .on_text_changed(context.callback(Message::AuxRecorded)),
+                            .on_password_changed(context.callback(Message::AuxRecorded)),
                     ),
                     KeyedView::new(
                         "record-cancel",
@@ -147,6 +149,9 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                     "接受 Rime 的 .dict.yaml（要有词、码两列）与现成的 .qj。码表由你自己取得，青简不随包分发第三方形码表。",
                 ),
             )),
+        note(
+            "文件示例（词与码之间是制表符，另存为 my.dict.yaml 即可导入）：\n---\nname: 我的码表\nversion: 1\n...\n开发\tkf\n开放\tkf\n鹤\thn",
+        ),
         feedback(&settings.notice),
     ]);
     page("辅码", body)
