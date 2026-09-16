@@ -27,3 +27,21 @@ use crate::error::DictionaryError;
 pub fn load_shuangpin(path: &Path) -> Result<ShuangpinTables, DictionaryError> {
     ShuangpinTables::from_tsv(&std::fs::read_to_string(path)?)
 }
+
+/// 方案名对应的文件名主干：路径字符换成 `_`，其余原样（名字可能是中文）。
+///
+/// 导入侧与读取侧共用这一个函数——各写一份的话，名字里带路径字符的方案会「导得进去、读不出来」。
+pub fn file_stem(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if matches!(
+                c,
+                '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'
+            ) {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect()
+}

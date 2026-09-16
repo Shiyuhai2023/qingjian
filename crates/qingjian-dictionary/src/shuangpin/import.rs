@@ -39,7 +39,7 @@ pub fn import_shuangpin(
         return Err(DictionaryError::NoUsableRules);
     }
     tables.name = name.clone();
-    let stem = sanitize(&name);
+    let stem = super::file_stem(&name);
     std::fs::create_dir_all(dest_dir)?;
     let target = dest_dir.join(format!("{stem}.tsv"));
     std::fs::write(&target, tables.to_tsv())?;
@@ -52,15 +52,3 @@ pub fn import_shuangpin(
     })
 }
 
-/// 方案名里的路径字符换成 `_`，其余原样（名字可能是中文）。
-fn sanitize(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
-                '_'
-            } else {
-                c
-            }
-        })
-        .collect()
-}

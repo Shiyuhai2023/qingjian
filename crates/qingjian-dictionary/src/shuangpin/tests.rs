@@ -214,3 +214,24 @@ fn tsv_round_trips() {
         Err(DictionaryError::NoUsableRules)
     ));
 }
+
+/// 方案名里带路径字符时：导入与读取两侧按同一个规则拼文件名，不会「导得进去读不出来」。
+#[test]
+fn a_name_with_path_characters_still_loads_back() {
+    let dir = TempDir::new("stem");
+    let source = dir.path().join("slash.schema.yaml");
+    std::fs::write(
+        &source,
+        "schema:\n  name: 我/的\nspeller:\n  algebra:\n    - xform/^ai$/ad/\n",
+    )
+    .unwrap();
+    let imported = import_shuangpin(&source, &dir.path().join("shuangpin"), &SYLLABLES).unwrap();
+    assert_eq!(imported.name, "我/的");
+    assert!(imported.path.ends_with("我_的.tsv"), "{:?}", imported.path);
+    // 读取侧（qingjian-platform 的 custom:<名字> 加载）按同一个 stem 拼路径
+    let path = dir
+        .path()
+        .join("shuangpin")
+        .join(format!("{}.tsv", super::file_stem("我/的")));
+    assert_eq!(load_shuangpin(&path).unwrap().name, "我/的");
+}

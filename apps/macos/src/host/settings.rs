@@ -331,10 +331,12 @@ impl Host {
             }
             // 弹出菜单第 0 项是「关」，之后按 ShuangpinScheme::ALL 的顺序
             (Setting::Shuangpin, SettingValue::Index(index)) => {
+                // TODO-维护者：自定义双拼（issue #8 卷 I 第 6 章）在 macOS 侧还没接，
+                // 这里只有内置四套；接上之后 key() 对自定义方案返回的是方案名（要写成 custom:<名字>）
                 let key = index
                     .checked_sub(1)
                     .and_then(|i| ShuangpinScheme::ALL.get(i))
-                    .map_or("", |scheme| scheme.key());
+                    .map_or_else(String::new, |scheme| scheme.key().to_owned());
                 self.settings.set_value("general", "shuangpin", key);
             }
             // 文本框失焦也会发 action：值没变就不写，免得每次切窗口都重写一遍配置
