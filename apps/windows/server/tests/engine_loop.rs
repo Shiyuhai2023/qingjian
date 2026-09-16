@@ -1410,3 +1410,32 @@ fn pressing_the_trigger_again_in_aux_mode_is_a_no_op() {
     let (_, _, frame) = press(&mut router, letter('f'));
     assert_eq!(preedit(&frame), "kai'fa;kf");
 }
+
+/// 老 DLL（协议 4）认不出 `AuxCode` 段：Server 给那个会话把码段降级成普通拼音段——
+/// 辅码筛选照常，只是不做淡色 + 下划线的区分。不然老 DLL 会整条消息解析失败，
+/// 把码字母原样放行给应用并断开重连（tsf 的 key_sink 就是这么处理的）。
+#[test]
+fn an_old_dll_gets_the_code_segment_downgraded() {
+    let mut router = aux_router();
+    // 模拟应用里还挂着旧 DLL：同一会话重开、报协议 4
+    assert_eq!(
+        router.handle(ClientMessage::OpenSession {
+            session: SESSION,
+            app: None,
+            protocol: 4,
+        }),
+        None
+    );
+    type_letters(&mut router, "kaifa");
+    press(&mut router, letter(';'));
+    let (_, _, frame) = press(&mut router, letter('k'));
+    assert_eq!(preedit(&frame), "kai'fa;k");
+    assert!(
+        frame.preedit.iter().all(|s| s.kind != PreeditKind::AuxCode),
+        "老 DLL 不该收到 AuxCode 段：{:?}",
+        frame.preedit
+    );
+    // 筛选照常
+    assert!(candidate_texts(&frame).contains(&"开发"));
+    assert!(!candidate_texts(&frame).contains(&"开放"));
+}
