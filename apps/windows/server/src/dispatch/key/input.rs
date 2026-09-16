@@ -29,8 +29,9 @@ impl Router {
         let english_candidates = event.modifiers.english_mode
             && !caps
             && self.config.english_candidates_in(self.focused_app());
-        // 缓冲区为空时敲 `?` 先进问字模式，中英文模式都行：后面跟字母就是在问字，跟别的键就还原成问号。
-        if !self.composing() && c == QUESTION_PREFIX {
+        // 缓冲区为空时敲 `?` 先进问字模式（配置 `[shortcut] question_mark`，缺省关），中英文模式都行：
+        // 后面跟字母就是在问字，跟别的键就还原成问号。
+        if !self.composing() && c == QUESTION_PREFIX && self.engine.takes_question_mark() {
             self.engine.set_english_mode(false);
             self.engine.push(c);
             return Effect::Changed(None);
@@ -101,7 +102,17 @@ impl Router {
                 self.engine.clear();
                 Effect::Changed(None)
             }
-            codes::RETURN => Effect::Changed(Some(self.engine.take_raw())),
+            codes::RETURN => {
+                if self.engine.is_zhuyin_mode() {
+                    if event.modifiers.shift {
+                        Effect::Changed(Some(self.engine.take_raw()))
+                    } else {
+                        Effect::Changed(Some(self.commit_highlighted()))
+                    }
+                } else {
+                    Effect::Changed(Some(self.engine.take_raw()))
+                }
+            }
             codes::TAB if self.engine.english_mode() => {
                 Effect::Changed(Some(self.commit_highlighted()))
             }
@@ -154,9 +165,11 @@ impl Router {
             self.engine.note_passthrough(c);
             return with_prefix(raw, Effect::Passthrough, c);
         }
-        if c.is_ascii_lowercase() {
+        let is_zhuyin_key = self.engine.is_zhuyin_mode()
+            && (c.is_ascii_digit() || matches!(c, '-' | ';' | ',' | '.' | '/'));
+        if c.is_ascii_lowercase() || is_zhuyin_key {
             // 辅码态：字母进码段（逐键即筛），不进拼音缓冲区
-            if self.engine.push_aux_code(c) {
+            if c.is_ascii_lowercase() && self.engine.push_aux_code(c) {
                 return Effect::Changed(None);
             }
             self.engine.push(c);
@@ -234,6 +247,7 @@ impl Router {
         }
         if let Some(digit) = codes::digit(event)
             && self.candidate_count() > 0
+            && (!self.engine.is_zhuyin_mode() || self.navigated)
         {
             let page_size = self.config.page_size;
             let page = self.highlight / page_size;
@@ -244,6 +258,10 @@ impl Router {
             return Effect::Navigated;
         }
         if c == ' ' {
+            if self.engine.zhuyin_needs_tone() {
+                self.engine.push(c);
+                return Effect::Changed(None);
+            }
             return Effect::Changed(Some(self.commit_highlighted()));
         }
         // 表达式 / 问字模式下的其他字符不进缓冲区（与 macOS 壳一致）：先把高亮候选上屏，再按没在组句处理这个键。

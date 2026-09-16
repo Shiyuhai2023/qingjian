@@ -44,6 +44,7 @@ fn run() -> Result<(), CliError> {
     let mut engine = build_engine(&args)?;
     tracing::info!(total_ms = started.elapsed().as_millis(), "Engine 就绪");
     engine.set_english_mode(args.english_mode);
+    engine.set_chinese_first(args.chinese_first);
     tuning::apply(&mut engine, &args.tune)?;
     // 查码：只看码表，不查词、不进交互
     if !args.aux_query.is_empty() {
@@ -248,6 +249,7 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
     if config.fuzzy.any() {
         tracing::info!(rules = ?config.fuzzy, "模糊音已启用");
     }
+    engine.set_traditional_mode(config.general.traditional);
     engine.set_fuzzy(config.fuzzy);
     engine.set_mode_keys(config.shortcut.mode);
     if let Some(scheme) = &args.shuangpin {

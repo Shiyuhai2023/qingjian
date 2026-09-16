@@ -53,14 +53,21 @@ pub(crate) struct Settings {
     /// 「通用」页双拼下拉的重建计数：换选后自增，下拉整条重建（数据源是现扫的，
     /// 选中「自定义…」后不管导入成功还是取消，界面都要回到配置里的真实值）。
     shuangpin_revision: u64,
+
+    /// 最近一次词库操作的结果，显示在词库页。
+    dictionary_status: String,
+
+    /// 系统里的字族名（DirectWrite），「字体」框的提示用。
+    families: Vec<String>,
+
+    /// 「字体」框里正在敲的文字；`None` 显示配置里的值。
+    font_query: Option<String>,
 }
 
 impl Settings {
     /// `%APPDATA%\Qingjian\config.toml`；取不到 `APPDATA` 退回工作目录。
     fn config_path() -> PathBuf {
-        std::env::var_os("APPDATA")
-            .map(|dir| PathBuf::from(dir).join("Qingjian").join("config.toml"))
-            .unwrap_or_else(|| PathBuf::from("config.toml"))
+        qingjian_platform::dirs::config_path().unwrap_or_else(|| PathBuf::from("config.toml"))
     }
 
     /// 数据目录 `%APPDATA%\Qingjian`。
@@ -71,7 +78,7 @@ impl Settings {
     /// 落盘一个配置值再重读。失败只打印。
     fn save(&mut self, section: &str, key: &str, value: impl Into<toml_edit::Value>) {
         if let Err(error) = Config::set_value(&self.path, section, key, value) {
-            eprintln!("保存 [{section}] {key} 失败: {error}");
+            crate::log::warn(format!("保存 [{section}] {key} 失败: {error}"));
             return;
         }
         self.reload();
@@ -80,7 +87,7 @@ impl Settings {
     /// 落盘一个字符串数组再重读。
     fn save_array(&mut self, section: &str, key: &str, values: &[String]) {
         if let Err(error) = Config::set_array(&self.path, section, key, values) {
-            eprintln!("保存 [{section}] {key} 失败: {error}");
+            crate::log::warn(format!("保存 [{section}] {key} 失败: {error}"));
             return;
         }
         self.reload();

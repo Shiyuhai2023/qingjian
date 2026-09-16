@@ -3,13 +3,18 @@
 use std::path::PathBuf;
 use std::time::{Instant, SystemTime};
 
-use qingjian_platform::{AuxCodeConfig, DictionariesConfig};
+use qingjian_core::Language;
+use qingjian_dictionary::Dictionary;
+use qingjian_platform::{AuxCodeConfig, DictionariesConfig, extra_dictionaries};
 use qingjian_predict::PredictConfig;
 
 /// 随包与用户数据目录：启动与热加载用的是同一批（词库、码表、自定义双拼）。
 /// 分开传参数会越传越长，且热加载与原路径不一致时找不到文件。
 #[derive(Debug, Clone, Default)]
 pub struct DataDirs {
+    /// 用户数据根目录（个人释义表在它下面；`dicts/` / `codes/` / `shuangpin/` 的父目录）。
+    pub user_root: Option<PathBuf>,
+
     /// 随包领域词库目录。
     pub bundled_dicts: Option<PathBuf>,
 
@@ -34,6 +39,9 @@ pub(crate) struct ConfigReload {
     /// 上次看文件的时间（节流用）。
     pub(super) last_check: Instant,
 
+    /// 随包数据根目录（释义表在 `data/generated` 下）。
+    pub(super) root: PathBuf,
+
     /// 随包与用户数据目录。
     pub(super) dirs: DataDirs,
 
@@ -51,4 +59,23 @@ pub(crate) struct ConfigReload {
 
     /// 已应用的 `[aux_code]`。
     pub(super) applied_aux_code: AuxCodeConfig,
+
+    /// 已应用的学习语言（`None` 为关）。
+    pub(super) applied_language: Option<Language>,
+
+    /// 最近加载的用户词库文件快照（路径、修改时间、长度）。
+    pub(super) dictionary_files: Vec<(PathBuf, Option<SystemTime>, u64)>,
+}
+
+impl ConfigReload {
+    /// 按上次有效配置装配词库，不把用户目录中的学习数据当作词库。
+    pub(super) fn load_dictionaries(&self) -> Vec<Dictionary> {
+        let dictionaries = extra_dictionaries::load(
+            self.dirs.bundled_dicts.as_deref(),
+            self.dirs.user_dicts.as_deref(),
+            &self.applied_dictionaries,
+        );
+        tracing::info!(count = dictionaries.len(), "附加词库已热重装");
+        dictionaries
+    }
 }
