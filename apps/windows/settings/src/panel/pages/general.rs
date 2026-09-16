@@ -65,7 +65,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "双拼",
-            "开双拼后 v、u、i 是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing。选「自定义…」导入 Rime 的双拼方案（.schema.yaml），导入的方案按名字排在内置四套后面。",
+            "开双拼后 v、u、i 是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing。选「自定义…」导入 Rime 的双拼方案（.schema.yaml），导入的方案按名字排在内置四套后面。\n方案文件的写法：每条规则把完整拼音改写成实际按键，替换串里的字母就是键——声母一条、韵母一条、零声母一条（只收两键一音节；完整方案每个声母韵母各写一条，现成的可取 Rime 社区 rime-double-pinyin）。示例里 zhong 敲 vs、ai 敲 ad：\nschema:\n  schema_id: my-scheme\n  name: 我的方案\nspeller:\n  algebra:\n    # $1 是括号里匹配到的部分，原样放回：换声母保留韵母（v$1），换韵母保留声母（$1s）\n    # 声母 zh 打 v：zhong 改写成 vong\n    - xform/^zh([a-z]*)$/v$1/\n    # 韵母 ong 打 s：vong 改写成 vs\n    - xform/^([a-z]*)ong$/$1s/\n    # 零声母 ai 打 ad\n    - xform/^ai$/ad/",
             shuangpin_combo(settings, context),
         ),
         field(
