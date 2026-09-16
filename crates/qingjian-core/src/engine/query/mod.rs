@@ -236,11 +236,12 @@ impl Engine {
         let aux_code = self.aux_filter();
         let mut items: Vec<Candidate> = Vec::with_capacity(scored.len());
         match aux_code {
-            None => items.extend(
-                scored
-                    .into_iter()
-                    .map(|item| chinese_candidate(&item, None)),
-            ),
+            // 没在筛码（纯拼音态，或辅码态空码段）：词的首条码也挂上，壳按 `[general] aux_code_show`
+            // 决定显不显示——开着时不用进辅码也能边打边认码；没装码表时自然全是 `None`
+            None => items.extend(scored.into_iter().map(|item| {
+                let first = self.matching_code(item.hit.text, "");
+                chinese_candidate(&item, first)
+            })),
             Some(code) => {
                 let mut kept: Vec<(usize, &str)> = scored
                     .iter()
@@ -657,7 +658,8 @@ impl Engine {
     }
 }
 
-/// 词库命中的中文候选。`aux_code` 是辅码态里命中当前码段的那条码（不在辅码态或这个词没有码时是 `None`）。
+/// 词库命中的中文候选。`aux_code` 是给壳显示的辅码：筛码时是命中当前码段的那条，没在筛码
+/// （纯拼音态、辅码态空码段）时是词的首条码；没装码表或这个词没有码时是 `None`。
 fn chinese_candidate(item: &Scored<'_>, aux_code: Option<&str>) -> Candidate {
     Candidate {
         text: item.hit.text.to_owned(),

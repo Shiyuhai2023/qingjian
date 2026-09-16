@@ -93,7 +93,7 @@ v1 只支持**全拼 + 辅码**、**双拼 + 辅码**。简拼 + 辅码、整句
 
 - **输入串（preedit）**：码段用**淡色 + 下划线**画法、`;` 不突出——与既有段样式同一套视觉词汇（敲的拼音正常色、剩余拼音画淡、被纠错改掉的画删除线）。Core 把码段作为新的段类型（`MarkedKind`）给出，两个壳各自落到自己的载体：macOS 走行内 marked text 与窗口拼音行，Windows 走 `protocol` 的 `PreeditSegment`（TSF DLL 交给系统）。
 - **候选**：辅码态只出命中码的词（无码词隐藏）；敲码筛空时候选窗口收起，只剩拼音行。
-- **显示码开关打开时**：码与译文**拼接成一条注记**（`1 鹤 rbm · crane`），仍是一条 annotation 而不是第二套注记系统——守 `docs/design/architecture.md`「翻译是候选词的单条 annotation」。竖排会比纯译文挤、横排更难放下，这是这个开关的已知代价（缺省关）。
+- **显示码开关打开时**：码与译文**拼接成一条注记**（`1 鹤 rbm · crane`），仍是一条 annotation 而不是第二套注记系统——守 `docs/design/architecture.md`「翻译是候选词的单条 annotation」。开着时不用进辅码态：纯拼音打字与辅码态空码段也把词的**首条码**挂上（边打边认码），筛码时显示命中的那条。竖排会比纯译文挤、横排更难放下，这是这个开关的已知代价（缺省关）。
 - 窗口布局、视觉层级、翻页键等沿用 `docs/design/candidate-ui.md`；**绘制归各壳**（macOS 自绘 NSPanel，Windows Server 自绘候选窗与状态条）。渲染器 spike（`crates/qingjian-render`，分支 `renderer-spike`）落地后两个平台都只贴图。
 
 ## 自定义双拼方案
@@ -109,7 +109,7 @@ v1 只支持**全拼 + 辅码**、**双拼 + 辅码**。简拼 + 辅码、整句
 | 键 | 缺省 | 说明 |
 |---|---|---|
 | `[general] aux_code_key` | `";"` | 触发键，可改反引号或 `/` |
-| `[general] aux_code_show` | `false` | 候选上是否显示码（与译文拼接） |
+| `[general] aux_code_show` | `false` | 候选上是否显示码（与译文拼接；开着时未进辅码态也显示词的首条码） |
 | `[general] aux_code_keep_empty` | `true` | 码段删空后是否留在辅码态（空码段再按一次退格才退出）；`false` 删空即回拼音态 |
 | `[aux_code] disabled` | `[]` | 关掉某张导入的码表，与 `[dictionaries] disabled` 同形 |
 | `[general] shuangpin` | 既有四套之一或空 | 加 `"custom:<名字>"` 指向用户导入的方案 |

@@ -143,6 +143,46 @@ fn candidates_without_a_code_are_hidden() {
     assert_eq!(query.marked_text(), "kai'fa;khz");
 }
 
+/// 没在筛码时候选也带码：纯拼音态与辅码态空码段挂词的**首条码**（壳按 `aux_code_show` 显示，
+/// 不用进辅码也能边打边认码）；无码词不挂。筛码时仍是命中码（边界 5 已覆盖）。
+#[test]
+fn first_code_rides_candidates_when_not_filtering() {
+    let mut engine = aux_engine();
+    engine.set_input("kaifa");
+    let query = engine.query().unwrap();
+    // 测试码表只有 开发=kf、开发者=kfz、开=kh：其余候选一律不带码
+    for candidate in &query.candidates.items {
+        let expected = match candidate.text.as_str() {
+            "开发" => Some("kf"),
+            "开发者" => Some("kfz"),
+            "开" => Some("kh"),
+            _ => None,
+        };
+        assert_eq!(
+            candidate.aux_code.as_deref(),
+            expected,
+            "{}",
+            candidate.text
+        );
+    }
+    assert!(query.candidates.items.iter().any(|c| c.text == "开发"));
+
+    // 辅码态空码段（刚触发 / 删空停住）：同一观感，还是首条码——按下触发键注记不消失
+    engine.enter_aux();
+    let query = engine.query().unwrap();
+    assert_eq!(
+        query
+            .candidates
+            .items
+            .iter()
+            .find(|c| c.text == "开发")
+            .unwrap()
+            .aux_code
+            .as_deref(),
+        Some("kf")
+    );
+}
+
 /// 边界 6：退格删码段、逐键放宽；删空停在辅码态（`aux_code_keep_empty` 缺省开）——
 /// `;` 仍在、无码词全部回来，空码段再按一次退格才退出、拼音一字不动。
 #[test]
