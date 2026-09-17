@@ -1,4 +1,5 @@
 mod apps;
+mod aux_code;
 mod candidate_renderer;
 mod dictionaries;
 mod general;
@@ -25,6 +26,7 @@ pub use apps::{
     AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF, DEFAULT_ENGLISH_CANDIDATES_OFF_MACOS,
     DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS,
 };
+pub use aux_code::AuxCodeConfig;
 pub use candidate_renderer::CandidateRenderer;
 pub use dictionaries::{DEFAULT_DOMAINS, DictionariesConfig};
 pub use general::{
@@ -61,6 +63,9 @@ pub struct Config {
 
     /// 附加词库开关。
     pub dictionaries: DictionariesConfig,
+
+    /// 辅码码表开关。
+    pub aux_code: AuxCodeConfig,
 
     /// 按应用改行为（哪些应用里英文模式不给候选）。
     pub apps: AppsConfig,
@@ -184,6 +189,13 @@ chinese_first = false
 full_width_punctuation = true
 # 英文模式下的同一件事，中英各记一份，状态条切的是当前模式那份；只有 Windows 用
 english_full_width_punctuation = false
+# 辅码触发键：拼音打完之后敲它进辅码态，之后敲的字母按码表缩小候选范围；缺省是分号
+# 单个可见字符，字母、数字与翻页键不能当触发键；微软 / 搜狗双拼里分号先当 ing 的韵母键
+aux_code_key = ";"
+# 候选上是否显示码（与译文拼成一条注记，如「鹤 rbm · crane」）。缺省关
+aux_code_show = false
+# 码段删空后是否留在辅码状态：true 删空后 ; 仍在、候选全部回来，再按一次退格才退出辅码；false 删空即回拼音状态
+aux_code_keep_empty = true
 # 双拼方案：留空为全拼；xiaohe 小鹤 / ziranma 自然码 / microsoft 微软 / sogou 搜狗 / xiaolang 小浪
 # 开着时非声母键按方案规则解析，表达式模式没有入口，问字只能靠 question_mark 打开后用 ? 进；微软、搜狗方案的 ; 键是 ing
 shuangpin = ""
@@ -236,6 +248,14 @@ in_ing = false
 # 偏好设置「词库」页可以勾选
 domains = ["idioms"]
 # 自己导入的词库：放在配置同目录 dicts/ 下的 .qj 文件都会加载，这里列出要关掉的（文件名，不含扩展名）
+disabled = []
+
+[aux_code]
+# 辅码总开关：false 时整条辅码线关（; 完全保持原生行为，候选也不挂码）；
+# true 且有可用码表（随包或 codes/ 下有 .qj）才生效
+enabled = false
+# 辅码码表：放在配置同目录 codes/ 下的 .qj 文件都会加载，这里列出要关掉的（文件名，不含扩展名）
+# 随包的笔画表也可以在这里关掉；码表由「辅码」设置页导入，或放好文件后在这里管
 disabled = []
 
 [model]
@@ -366,7 +386,7 @@ impl Config {
         };
         toml::from_str(&source).map_err(|source| ConfigError::Parse {
             path: path.to_owned(),
-            source,
+            source: Box::new(source),
         })
     }
 
@@ -509,7 +529,11 @@ mod tests {
         assert_eq!(config.general.log_level, LogLevel::Info);
         assert_eq!(config.shortcut.mode.expression, 'i');
         assert_eq!(config.shortcut.mode.question, 'u');
-        assert_eq!(config.shortcut.translation, Modifiers::OPTION);
+        // 译词修饰键缺省分平台（Windows 是 Ctrl 系，其余 Option 系，见 shortcut.rs），断言跟着 Default 走
+        assert_eq!(
+            config.shortcut.translation,
+            Config::default().shortcut.translation
+        );
     }
 
     #[test]

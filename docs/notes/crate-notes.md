@@ -9,14 +9,25 @@ CLAUDE.md 只保留目录地图与规则，每个 crate / app / tool 的实现�
 `lookup_pattern`（≥ 模式长度）与 `lookup_exact`（正好等长）同一套实现。词库键以 `v` 表示 ü，
 TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 旧 `.qj` 含这些键时，加载器建立规范化的内存词库。新 `.qj` 继续使用 mmap。
+辅码码表（`code_table/`，`CodeTable` = `Kind::CodeTable` 的 `.qj`）是另一套存储：`TEXT` 词 arena + `CODE` 码 arena +
+`ENTR` 条目（12 字节，词字节序升序、同词相邻）+ `HASH` 词 → 条目区间起点（`qingjian_format::hash`）。查询只有
+`AuxCodeLookup::code_with_prefix` 一个方法：候选词逐个问「有没有以当前码段开头的码」。导入 `import_code_table`
+解析 Rime `.dict.yaml` 的 `columns`（缺省 text / code / weight）与 `import_tables`（相对主文件目录合表），
+「有词无码」与非法码进统计返回、不静默跳过；一个可用条目都没有时报 `NoCodeEntries`。
 
 ## crates/qingjian-core
 
 模块：`composition` / `parser` / `correction`（拼写纠错：整段一处编辑的候选纠正 + `typo` 音节级敲错变体表，后者进整句词图当带代价的边）/
 `candidate` / `ranking` / `shortcut` / `sentence` / `fuzzy` / `shuangpin`（双拼：四套方案键位表、键 → 全拼解码与消耗换算）/ `zhuyin`（大千注音：键 → 注音符号 → 拼音，`[general] zhuyin` 开关，声调只判音节完整不进查询）/ `emoji` /
 `english`（英文模式候选）/ `engine`（`query::EnglishTail`：句末英文词并入整句，`woxiangxuehaorust` → 我想学好rust，尾段也像拼音时按分数与拼音读法比）。
+辅码（`engine/aux_code.rs`）：`Engine.aux_code: Option<String>` 是码段（`None` 拼音态，`Some("")` 刚触发或删空停在辅码态——`Engine.aux_keep_empty`，配置 `[general] aux_code_keep_empty` 缺省开），
+不进 `Composition`；`aux_trigger`（配的触发键 + 光标在段尾 + 作用域能完整切分 + 双拼韵母键优先）、`enter_aux`、
+`push_aux_code`（只收 a-z）、`clear_aux`；退格在辅码态内部分派（删码；删空按 `aux_keep_empty` 停在辅码态或回拼音态，空码段再退格退出），`commit_with` / `take_raw` /
+`punctuate` / `clear` 都收尾清码。查询在 `rank` 之后**反向过滤**：候选词逐个 `AuxCodeLookup::code_with_prefix`
+（码表在 `Engine.aux_codes`，`set_aux_codes` 注入），不命中的隐藏，命中的按「完全匹配码 > 码长降序 > 原词频序」
+重排（stable sort 保住原序），命中码（没在筛码时是词的首条码）写进 `Candidate.aux_code`；码段非空时跳过整句 / 英文 / 快捷 / emoji / 自定义短语
+与云联想。preedit 分段多出 [触发键 `Typed`][码段 `MarkedKind::AuxCode`]，见 `Query::marked_segments`。
 `Engine` 是对外唯一门面，`Translator` / `Learner` trait 在 `engine` 模块；词库是「主词库 + 附加词库（`set_extra_dictionaries`）+ 用户词」的列表；繁体输出（`traditional` 开关与 `traditional_map` 映射）依赖 `ferrous-opencc`（`s2tw`）在出候选与上屏边界转换，内部保持简体。
-`Engine` 是对外唯一门面，`Translator` / `Learner` trait 在 `engine` 模块；词库是「主词库 + 附加词库（`set_extra_dictionaries`）+ 用户词」的列表。
 - 中英混输的英文词位置：`Engine::set_chinese_first`（配置 `[general] chinese_first`，缺省关）关着时拼音不像话的输入英文排第一（`extras::insert_english`，
   用户老选中文词时仍让中文在前），开着时整句先插、英文词紧随其后排第二（`query_inner` 里两步的先后按开关掉转）；句末英文词并入整句（`EnglishTail`）不受它影响。
   缺省关是回放定的（9241 词 / 269 条英文上屏：缺省开英文首选 82.5% → 7.1%）。
@@ -91,8 +102,11 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 `Config`（TOML 配置文件，`[general]` / `[shortcut]` / `[fuzzy]` / `[dictionaries]` / `[apps]` / `[predict]` 分节，首次运行写模板，
 `set_value` 用 toml_edit 原地改键保留注释；`[model] enabled` 本地整句模型开关，`LocalModelConfig`）；`extra_dictionaries` 列出 / 加载随包领域词库与用户 `dicts/`
-（mac 壳与 Windows Server 共用，同名 `.qj` 优先于 `.tsv`）；`protocol` 模块是 Windows Server ↔ TSF DLL 的 IPC 协议类型
-（`ClientMessage` / `ServerMessage` / `Frame` / `PreeditSegment`，全 serde，两端共用，见 `docs/design/architecture.md`「Windows：TSF」）。
+（mac 壳与 Windows Server 共用，同名 `.qj` 优先于 `.tsv`）；`code_tables` 同构地列出 / 加载随包根 `codes/` 与用户 `codes/` 的码表
+（`[aux_code] disabled` 是黑名单，`[general] aux_code_key` 缺省 `;` 且校验后退回缺省、`aux_code_show` 是显示码开关）；
+`protocol` 模块是 Windows Server ↔ TSF DLL 的 IPC 协议类型
+（`ClientMessage` / `ServerMessage` / `Frame` / `PreeditSegment`，全 serde，两端共用，见 `docs/design/architecture.md`「Windows：TSF」；
+`PROTOCOL_VERSION` = 5，`PreeditKind::AuxCode` 对应 Core 的 `MarkedKind::AuxCode`，`Frame.aux_code_show` 随帧下发显示码开关）。
 
 ## crates/qingjian-render
 
@@ -110,8 +124,12 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 - `--typing` 逐键计时（性能测试用 release 构建跑，目标每键 10 ms 以内）。
 - `--chinese-first` 打开中文优先（`[general] chinese_first = true` 的排法），配合 `--replay` 比两种英文词位置。
 - `--replay <input-log.jsonl>` 回放评测：把日志里每次上屏的键重新喂给引擎，按来源算首选 / 前五命中率、平均名次、不在候选的条数，打印没命中的例子（`--misses N`）；
-  只在内存里学习不写文件，加 `--user-dict` 可带上现有学习数据。
+  只在内存里学习不写文件，加 `--user-dict` 可带上现有学习数据。含触发键的日志行按壳那样逐键重喂（进辅码态、码段进码段），
+  并多打一行「辅码选词 N 条，其中同拼音纯输入首选命中 M 条」（学习闭环的尺子）。
+- `--aux-table <路径>`（可多次）装辅码码表（`.qj` 或 `词<Tab>码` TSV）；交互模式与查询模式都按壳的方式逐键喂入，
+  配的触发键进辅码态、之后的字母进码段，候选行会带上命中的码。
 - `--tune 名=值`（逗号分隔）覆盖个人 n-gram 插值与敲错代价的常数扫网格（名字见 `apps/cli/src/tuning.rs`，Core 侧是 `Engine::set_interpolation` / `set_typo_costs`，壳只用缺省值）。
+- `--eval-text <文本>...` 装了码表（`--aux-table`）时多打一行码表覆盖率：词频前 10,000 与全库两段命中比例（与导入统计同源）。
 - `--eval-text <文本>...` 整句评测：把用户自己写的中文文本按标点切句、按词库读音转成全拼，冷启动喂给引擎看整句能不能还原原句
   （首选命中率 / 字准确率 / 查询耗时；不依赖日志里当时选了什么，给整句排序与语言模型的改动当尺子），`--eval-save` 冻结成 `句子\t拼音\t上文` 三列文件，
   之后直接 `--eval-text` 它保证比的是同一份句子（本机的在 `data/eval/sentences.tsv`）。排序、整句、纠错的改动先跑它们再合。
@@ -144,14 +162,18 @@ IMK 输入法，源码按 `app / host / imk / candidates / menubar / preferences
 ## apps/windows
 
 一个产品两个 package：`server`（Server 进程：IPC 分派 + Engine + 命名管道 + 自绘候选窗与悬浮状态条）与 `tsf`（TSF 文本服务 DLL，lib 名固定 `qingjian_tsf`），
-外加 `settings`（WinUI 3 设置程序）与 `installer`（Inno Setup）。不合成一个 crate，因为 DLL 不能带 Engine 的依赖树，见 `apps/windows/README.md`；
+外加 `settings`（WinUI 3 设置程序，含「辅码」页）与 `installer`（Inno Setup）。
+Server 侧辅码接线：`RouterConfig.aux_code_key` / `aux_code_show`（`apply_config` 热加载）、`assembly` 从随包 `codes/` 与用户 `codes/` 装码表
+（`[aux_code] disabled` 过滤，`code_tables::load`）、按键在 `dispatch/key/input.rs` 分流（触发键进辅码态、辅码态里字母进码段、
+标点先上屏高亮候选再转全角）、候选窗 `ui/candidates/row.rs` 的 `Tone::Code` 把码拼在译文之前，拼音行 `view.rs` 给码段加下划线。
+热加载的 `dicts/` 与 `codes/` 目录与启动同款（修过一处传基础目录的错）。不合成一个 crate，因为 DLL 不能带 Engine 的依赖树，见 `apps/windows/README.md`；
 协议类型在 `qingjian-platform::protocol`，设计见 `docs/design/architecture.md`「Windows：TSF」。
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），
 仅接受单个非代理项 UTF-16 单元。字母、小键盘和 AltGr 处理不变，不保证组合音符输入。
 
 词库导入（设置「词库」页）走 `qingjian-dictionary::import` 转成 `.qj`（空词库拒绝），多选批量、成功的从 `[dictionaries] disabled` 摘掉、页面显示每个文件的结果；
-Server 每次轮询比对用户 `dicts\` 的路径 / mtime / 长度快照，配置没变也重载新增、同名更新与移除；配置解析失败时词库沿用上次有效的开关（#36）。
+Server 每次轮询比对用户 `dicts` 的路径 / mtime / 长度快照，配置没变也重载新增、同名更新与移除；配置解析失败时词库沿用上次有效的开关（#36）。
 
 ## assets
 
@@ -177,4 +199,14 @@ Server 每次轮询比对用户 `dicts\` 的路径 / mtime / 长度快照，配�
 - `mine`：从语料挖词库没收的高频词并过滤（`oov_filter.rs`：虚词规则 + 相邻字对 PMI≥3，`--candidates` 只重过滤）。
 - `phrases`：挖短语层（两遍扫语料：相邻两词、两段二元都够频的相邻三词，总次数与对话语料次数都 ≥ 2000 + 边界规则，读音由成分词拼出；我的 / 不知道 / 有没有 这类常用词表不收的组合，
   `assets/lexicon/phrases.tsv`；词库已并入过短语时重跑加 `--refresh`）。
-- `pack dict|lm|glossary`：打 `.qj`（释义表也进容器）。
+- `pack dict|lm|glossary|codes`：打 `.qj`（释义表也进容器；`codes` 是唯一带计算的一种，见下）。
+- `stroke`：CNS11643 全字庫筆順（`data/cns/`，官方 Properties.zip / MapingTables.zip 解出，gitignore）+ 大陆序覆盖表
+  `assets/stroke/prc-rules.tsv` → `data/generated/codes/stroke.tsv`（随包笔画表的源数据：7,990 字、127 KB，
+  1 横 2 竖 3 撇 5 折 n 点捺）；`--verify` 按一级字每 12 字取 1（291 字）比对大陆笔画数，白名单
+  `assets/stroke/residual-whitelist.tsv`（7 字）之外一处不符即退出码非 0（2026-09-15 实测白名单外 0 条）。
+  来源、许可与验收记录见 `assets/stroke/README.md`。
+- `pack codes`：把 `codes/stroke.tsv` 与词库（缺省 `data/generated/dict.qj`）算成随包原生码表 `data/generated/codes/stroke.qj`
+  （键位 1→h 横 / 2→s 竖 / 3→p 撇 / 5→z 折 / 点捺 n→n；单字「前 4 笔 + 末笔」，不足 5 笔按实际取；词组每字首笔，
+  二字 2 码、三字 3 码、四字以上 = 前三字首笔 + 末字首笔；词里有一个字不在笔画表里整词跳过）；
+  `--stroke` / `--dict` / `--output` 改路径，元数据缺省「笔画」/ `OFL-1.1` / CNS11643 数位发展部署名（可覆盖），数据版本取笔画表日期。
+  2026-09-16 实测：词库 92,821 词条 / 91,904 词，有码 91,756、无码跳过 148，码表 91,756 条 / 3.0 MB，615 ms。

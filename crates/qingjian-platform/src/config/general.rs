@@ -61,6 +61,17 @@ pub struct GeneralConfig {
     /// 英文模式下的同一件事，中英各记一份；缺省半角。只有 Windows 用（macOS 英文模式一律半角）。
     pub english_full_width_punctuation: bool,
 
+    /// 辅码触发键：拼音打完之后敲它进辅码态，缺省 `;`。校验 = 单字符、ASCII 可打印、
+    /// 非字母数字、非翻页键（见 [`qingjian_core::is_valid_aux_code_key`]）。
+    pub aux_code_key: String,
+
+    /// 候选上是否显示码（与译文拼成一条注记）。缺省关：竖排会挤、横排更难放下。
+    pub aux_code_show: bool,
+
+    /// 码段删空后是否留在辅码态：开（缺省）时 `;` 仍在、候选全部回来，空码段再按一次退格才退出；
+    /// 关则删空即回纯拼音态。
+    pub aux_code_keep_empty: bool,
+
     /// 双拼方案：空串为全拼，否则 `xiaohe` / `ziranma` / `microsoft` / `sogou` / `xiaolang`（见 [`ShuangpinScheme`]）。
     pub shuangpin: String,
 
@@ -97,6 +108,9 @@ impl Default for GeneralConfig {
             chinese_first: false,
             full_width_punctuation: true,
             english_full_width_punctuation: false,
+            aux_code_key: qingjian_core::DEFAULT_AUX_CODE_KEY.to_string(),
+            aux_code_show: false,
+            aux_code_keep_empty: true,
             shuangpin: String::new(),
             zhuyin: false,
             log_level: LogLevel::default(),
@@ -127,6 +141,15 @@ impl GeneralConfig {
                 tracing::warn!(key, "不认识的双拼方案，按全拼");
                 None
             }
+        }
+    }
+
+    /// 辅码触发键；写得不对（不是单个合法字符，或撞上当前翻页键 / 拼音隔音符 `'`）时退回缺省 `;`。
+    pub fn aux_code_key(&self) -> char {
+        let mut chars = self.aux_code_key.chars();
+        match (chars.next(), chars.next()) {
+            (Some(key), None) if qingjian_core::is_valid_aux_code_key(key, self.page_keys()) => key,
+            _ => qingjian_core::DEFAULT_AUX_CODE_KEY,
         }
     }
 
@@ -172,6 +195,25 @@ mod tests {
         assert_eq!(general.page_keys(), ('[', ']'));
         general.page_keys = ",,".to_owned();
         assert_eq!(general.page_keys(), ('[', ']'));
+    }
+
+    #[test]
+    fn aux_code_key_falls_back_to_the_default() {
+        let mut general = GeneralConfig::default();
+        assert_eq!(general.aux_code_key(), ';');
+        assert!(!general.aux_code_show);
+        general.aux_code_key = "/".to_owned();
+        assert_eq!(general.aux_code_key(), '/');
+        for bad in ["", "ab", "a", "1", "[", "中"] {
+            general.aux_code_key = bad.to_owned();
+            assert_eq!(general.aux_code_key(), ';', "{bad}");
+        }
+    }
+
+    /// 码删空保持辅码态的开关缺省开（`[general] aux_code_keep_empty`）。
+    #[test]
+    fn aux_code_keep_empty_defaults_on() {
+        assert!(GeneralConfig::default().aux_code_keep_empty);
     }
 
     #[test]

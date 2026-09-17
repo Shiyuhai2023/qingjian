@@ -13,11 +13,12 @@ mod replay;
 mod rescoring;
 mod tuning;
 
+use std::sync::Arc;
 use std::time::Instant;
 
 use clap::Parser;
 use qingjian_core::{EmojiTable, Engine, FuzzyRules, Language};
-use qingjian_dictionary::{Dictionary, WordList};
+use qingjian_dictionary::{AuxCodeLookup, CodeTable, Dictionary, WordList};
 use qingjian_learning::FrequencyLearner;
 use qingjian_lm::BigramModel;
 use qingjian_platform::Config;
@@ -45,6 +46,22 @@ fn run() -> Result<(), CliError> {
     engine.set_english_mode(args.english_mode);
     engine.set_chinese_first(args.chinese_first);
     tuning::apply(&mut engine, &args.tune)?;
+    // 查码：只看码表，不查词、不进交互
+    if !args.aux_query.is_empty() {
+        for word in &args.aux_query {
+            let codes: Vec<&str> = engine
+                .aux_codes()
+                .iter()
+                .flat_map(|table| table.codes_of(word))
+                .collect();
+            if codes.is_empty() {
+                println!("{word}\t（没有码）");
+            } else {
+                println!("{word}\t{}", codes.join(" "));
+            }
+        }
+        return Ok(());
+    }
     if let Some(path) = &args.replay {
         let report = replay::run(&mut engine, path, args.misses)?;
         print!("{report}");
@@ -250,6 +267,24 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
     }
     engine.set_shuangpin(config.general.shuangpin());
     engine.set_zhuyin_mode(config.general.zhuyin);
+    engine.set_aux_code_key(config.general.aux_code_key(), config.general.page_keys());
+    engine.set_aux_keep_empty(config.general.aux_code_keep_empty);
+    if !args.aux_table.is_empty() {
+        let mut tables: Vec<Arc<dyn AuxCodeLookup>> = Vec::new();
+        for path in &args.aux_table {
+            let table = CodeTable::from_path(path)?;
+            tracing::info!(
+                path = %path.display(),
+                entries = table.len(),
+                words = table.word_count(),
+                "辅码码表已加载"
+            );
+            tables.push(Arc::new(table));
+        }
+        engine.set_aux_codes(tables);
+        // CLI 没有配置开关：给了码表即开辅码（缺省关），replay 统计不哑
+        engine.set_aux_enabled(true);
+    }
     if config.predict.enabled {
         let predictor = CloudPredictor::new(&config.predict)?;
         engine = engine.with_predictor(Box::new(predictor));

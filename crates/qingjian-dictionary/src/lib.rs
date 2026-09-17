@@ -11,7 +11,10 @@
 //!
 //! 内存布局面向「几十万到上百万条常驻」：词文本与拼音键各放一个连续 arena，
 //! 词目只存偏移与词频，键排序后二分定位、顺序扫描前缀范围。
+//!
+//! 辅码码表（[`CodeTable`]）是另一套数据：词 → 码的映射，按词文本排序 + 哈希索引定位（见 `code_table` 模块）。
 
+mod code_table;
 mod dictionary;
 mod error;
 pub mod import;
@@ -19,6 +22,10 @@ mod matching;
 mod pattern;
 mod word_list;
 
+pub use code_table::{
+    AuxCodeLookup, CodeTable, CodeTableImport, CodeTableImportReport, CodeTableInfo,
+    code_table_info, import_code_table,
+};
 pub use dictionary::Dictionary;
 pub use error::DictionaryError;
 pub use matching::Match;
