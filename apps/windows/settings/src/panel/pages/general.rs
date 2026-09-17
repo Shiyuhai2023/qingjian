@@ -3,7 +3,7 @@
 use qingjian_platform::MAX_PAGE_SIZE;
 use windows_reactor::*;
 
-use crate::panel::controls::{field, index_of, page};
+use crate::panel::controls::{feedback, field, index_of, page};
 use crate::panel::{Message, Settings};
 
 /// 学习语言：界面名 + 配置写法。
@@ -116,6 +116,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 .is_on(g.chinese_first)
                 .on_toggled(context.callback(Message::ChineseFirst)),
         ),
+        feedback(&settings.notice),
     ];
     page("通用", StackPanel::new().spacing(16.0).children(rows))
 }

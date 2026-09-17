@@ -94,6 +94,7 @@ impl Router {
                     scheme: self
                         .config
                         .shuangpin
+                        .as_ref()
                         .map(|scheme| scheme.label().to_owned()),
                     full_width: self.full_width_for(english),
                     theme: self.config.theme,

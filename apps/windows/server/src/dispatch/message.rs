@@ -36,6 +36,7 @@ impl Router {
                     SessionInfo {
                         app,
                         private: false,
+                        protocol,
                     },
                 );
                 None
@@ -133,13 +134,14 @@ impl Router {
             Effect::Passthrough => (None, KeyOutcome::Passthrough),
         };
         self.poll_prediction();
-        let frame = self.current_frame();
-        self.reconcile_candidates(&frame);
+        // 自绘窗吃未降级的帧；发给 DLL 的那份按老协议降级（见 composed 的 current_frame）
+        let shown = self.self_drawn_frame();
+        self.reconcile_candidates(&shown);
         ServerMessage::KeyResult {
             session,
             outcome,
             commit,
-            frame,
+            frame: self.current_frame(),
         }
     }
 
@@ -152,9 +154,9 @@ impl Router {
         }
         let frame = if self.focused == Some(session) {
             self.poll_prediction();
-            let frame = self.current_frame();
-            self.reconcile_candidates(&frame);
-            frame
+            let shown = self.self_drawn_frame();
+            self.reconcile_candidates(&shown);
+            self.current_frame()
         } else {
             Frame::default()
         };

@@ -60,6 +60,12 @@ pub struct RouterConfig {
 
     /// 双拼方案（`[general] shuangpin`）；全拼为 `None`。
     pub shuangpin: Option<ShuangpinScheme>,
+
+    /// 辅码触发键（`[general] aux_code_key`，缺省 `;`）；非法值退回缺省。
+    pub aux_code_key: char,
+
+    /// 候选上是否显示辅码（`[general] aux_code_show`）。随帧下发给候选窗。
+    pub aux_code_show: bool,
 }
 
 impl RouterConfig {
@@ -101,6 +107,8 @@ impl From<&Config> for RouterConfig {
             status_enabled: config.status_bar.enabled,
             status_pos: config.status_bar.x.zip(config.status_bar.y),
             shuangpin: config.general.shuangpin(),
+            aux_code_key: config.general.aux_code_key(),
+            aux_code_show: config.general.aux_code_show,
         }
     }
 }

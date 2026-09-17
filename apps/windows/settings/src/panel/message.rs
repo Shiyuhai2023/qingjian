@@ -9,6 +9,7 @@ pub(crate) enum Message {
     // 通用页
     LearningLanguage(Option<usize>),
     PageSize(Option<f64>),
+    /// 双拼方案下标；末项是「自定义…」（开文件选择器导入，不落盘它本身）。
     Shuangpin(Option<usize>),
     Zhuyin(bool),
     Traditional(bool),
@@ -62,6 +63,26 @@ pub(crate) enum Message {
     /// 挪进 dicts\removed，不真删。
     RemoveUserDict(String),
     ImportDictionary,
+
+    // 辅码页
+    /// 辅码总开关（`[aux_code] enabled`，缺省关）。
+    AuxCodeEnabled(bool),
+    /// 候选上是否显示码。
+    AuxCodeShow(bool),
+    /// 码删空后是否留在辅码态（`[general] aux_code_keep_empty`）。
+    AuxCodeKeepEmpty(bool),
+    /// 点「录制」：进入等一个键的状态。
+    AuxRecordStart,
+    /// 录制中放弃，保持原值。
+    AuxRecordCancel,
+    /// 录制框敲进来的文本，取第一个字符当新触发键。
+    AuxRecorded(String),
+    /// 码表开关（名字，开 / 关），关掉的进 `[aux_code] disabled`。
+    ToggleAuxTable(String, bool),
+    /// 挪进 codes\removed，不真删。
+    RemoveAuxTable(String),
+    /// 打开文件选择器导入一张码表（Rime `.dict.yaml`）。
+    ImportCodeTable,
 
     // 高级页
     VerboseLog(bool),
