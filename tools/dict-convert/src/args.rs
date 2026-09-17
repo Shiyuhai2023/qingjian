@@ -163,9 +163,61 @@ pub enum Command {
         max_chars: usize,
     },
 
+    /// 笔画表：CNS11643 全字庫「筆順資料」+ 大陆序覆盖表 → `codes/stroke.tsv`（随包笔画码表的源数据，见模块文档）
+    Stroke {
+        /// CNS 筆順資料（`CNS_strokes_sequence.txt`）：`CNS 字碼<TAB>1-5 序列`
+        #[arg(long, default_value = "data/cns/CNS_strokes_sequence.txt")]
+        cns_seq: PathBuf,
+
+        /// CNS→Unicode 对照表（`CNS2UNICODE_Unicode*.txt`）：给文件或目录（目录取其中的对照表）
+        #[arg(long, default_value = "data/cns", num_args = 1..)]
+        cns_map: Vec<PathBuf>,
+
+        /// 官方筆畫數（`CNS_stroke.txt`）：与序列长度自洽的字才留，不给就不过滤
+        #[arg(long)]
+        cns_count: Option<PathBuf>,
+
+        /// 自洽过滤的容差：序列长度与筆畫數之差超过它的字丢掉
+        #[arg(long, default_value_t = 1)]
+        max_diff: usize,
+
+        /// 字表白名单（缺省通用规范字表）：只出表里的字，按表序排列
+        #[arg(long, default_value = "assets/lexicon/01_characters/standard_8105.tsv")]
+        filter: PathBuf,
+
+        /// 大陆序覆盖表：部件重写规则 + 例外字 + 整字补录
+        #[arg(long, default_value = "assets/stroke/prc-rules.tsv")]
+        prc_rules: PathBuf,
+
+        /// 产物路径；缺省写到 <输出目录>/codes/stroke.tsv
+        #[arg(long)]
+        output: Option<PathBuf>,
+
+        /// 写完再按抽样对照表比对大陆笔画数，白名单之外一处不符就退出码非 0
+        #[arg(long)]
+        verify: bool,
+
+        /// 抽样用的字表：按表序每 `--stride` 字取一个
+        #[arg(long, default_value = "assets/lexicon/01_characters/level1_3500.tsv")]
+        sample: PathBuf,
+
+        /// 抽样密度：每几字取一个
+        #[arg(long, default_value_t = 12)]
+        stride: usize,
+
+        /// 对照表（`字<TAB>大陆笔画数`）：抽样字表里每个字都要有
+        #[arg(long, default_value = "tools/dict-convert/testdata/prc-counts-l1.tsv")]
+        reference: PathBuf,
+
+        /// 残留差异白名单（`字<TAB>本表笔画数<TAB>对照笔画数<TAB>说明`）
+        #[arg(long, default_value = "assets/stroke/residual-whitelist.tsv")]
+        whitelist: PathBuf,
+    },
+
     /// 把 TSV 打包成 `.qj` 容器（mmap 直接用，启动近零耗时）：`dict` 读 dict.tsv 写 dict.qj，`lm` 读 lm-unigram/bigram.tsv 写 lm.qj，
     /// `glossary --language en` 读 glossary-en.tsv 写 glossary-en.qj；`model` 把训练仓库导出的三件套目录（缺省 data/model）
-    /// 打成一个 model.qjm（`--out-dir data/model` 就写回原目录，随包只带这一个文件）
+    /// 打成一个 model.qjm（`--out-dir data/model` 就写回原目录，随包只带这一个文件）；
+    /// `codes` 是唯一不「原样落盘」的一种：读笔画表与词库，按取码规则算成本地码表 codes/stroke.qj（见 codes 模块）
     Pack {
         /// 打包哪种数据
         kind: PackKind,
@@ -174,8 +226,20 @@ pub enum Command {
         #[arg(long, num_args = 1..)]
         input: Vec<PathBuf>,
 
-        /// 元数据：名称
+        /// `codes` 用：笔画表（`stroke` 子命令的产物，`字\t序列`）；缺省 <输出目录>/codes/stroke.tsv
         #[arg(long)]
+        stroke: Option<PathBuf>,
+
+        /// `codes` 用：取码用的词库（`.qj` 或 TSV）；缺省 <输出目录>/dict.qj
+        #[arg(long)]
+        dict: Option<PathBuf>,
+
+        /// `codes` 用：码表产物；缺省 <输出目录>/codes/stroke.qj
+        #[arg(long)]
+        output: Option<PathBuf>,
+
+        /// 元数据：名称（`codes` 缺省「笔画」，别的种类必填）
+        #[arg(long, default_value = "")]
         name: String,
 
         /// 元数据：许可证（SPDX 标识，如 GPL-3.0-only、CC-BY-SA-4.0）
@@ -214,4 +278,20 @@ pub enum PackKind {
 
     /// 本地整句模型（三件套目录 → model.qjm）
     Model,
+
+    /// 笔画码表（笔画表 + 词库 → codes/stroke.qj，随包原生码表）
+    Codes,
+}
+
+impl PackKind {
+    /// 子命令里写的名字（报错文案用）。
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Dict => "dict",
+            Self::Lm => "lm",
+            Self::Glossary => "glossary",
+            Self::Model => "model",
+            Self::Codes => "codes",
+        }
+    }
 }
