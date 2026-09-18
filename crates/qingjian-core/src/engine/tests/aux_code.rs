@@ -1,6 +1,6 @@
 //! 辅码态：触发消歧、逐键即筛、删码回退、上屏收尾与 preedit 分段（spec 卷 I 第 2 章边界表 14 行）。
 
-use qingjian_dictionary::CodeTable;
+use qingjian_dictionary::AuxCodeTable;
 
 use super::*;
 
@@ -8,7 +8,7 @@ use super::*;
 /// 码长各不相同（kf / kfz / kh），重排与逐键收窄的期望才好写。
 fn codes() -> Arc<dyn AuxCodeLookup> {
     Arc::new(
-        CodeTable::from_pairs([
+        AuxCodeTable::from_pairs([
             ("开发".to_owned(), "kf".to_owned()),
             ("开发者".to_owned(), "kfz".to_owned()),
             ("开".to_owned(), "kh".to_owned()),
@@ -361,7 +361,7 @@ fn triggering_again_is_idempotent() {
 #[test]
 fn exact_code_matches_come_first_and_longer_codes_before_shorter_ones() {
     let table = Arc::new(
-        CodeTable::from_pairs([
+        AuxCodeTable::from_pairs([
             ("开".to_owned(), "kf".to_owned()),
             ("开发".to_owned(), "kfa".to_owned()),
             ("开放".to_owned(), "kfb".to_owned()),

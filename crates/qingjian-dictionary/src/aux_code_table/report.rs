@@ -2,7 +2,7 @@
 
 /// 一次码表导入的统计。与词库导入不同，「有词无码」不静默跳过：码表少一行就是少一个词可用。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct CodeTableImportReport {
+pub struct AuxCodeTableImportReport {
     /// 读入的正文行数（不含注释、空行与前导的 YAML 头）。
     pub read: usize,
 

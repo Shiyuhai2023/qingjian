@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use qingjian_format::{Container, Kind, Metadata};
 
 use super::parsed::ParsedTable;
-use super::{AuxCodeLookup, CodeTable, code_table_info, import_code_table};
+use super::{AuxCodeLookup, AuxCodeTable, aux_code_table_info, import_aux_code_table};
 use crate::error::DictionaryError;
 
 /// 一次测试一个目录，结束删掉。
@@ -31,8 +31,8 @@ impl Drop for TempDir {
     }
 }
 
-fn sample() -> CodeTable {
-    CodeTable::from_pairs([
+fn sample() -> AuxCodeTable {
+    AuxCodeTable::from_pairs([
         ("开发".to_owned(), "kf".to_owned()),
         ("开发".to_owned(), "kaifa".to_owned()),
         ("开放".to_owned(), "kf".to_owned()),
@@ -43,7 +43,7 @@ fn sample() -> CodeTable {
 
 #[test]
 fn pairs_are_sorted_and_deduplicated() {
-    let table = CodeTable::from_pairs([
+    let table = AuxCodeTable::from_pairs([
         ("开放".to_owned(), "kf".to_owned()),
         ("开发".to_owned(), "kf".to_owned()),
         ("开发".to_owned(), "kf".to_owned()),
@@ -71,9 +71,9 @@ fn codes_of_and_prefix_lookup_see_every_code() {
 
 #[test]
 fn rejects_codes_outside_the_alphabet() {
-    assert!(CodeTable::from_pairs([("鹤".to_owned(), "H1".to_owned())]).is_err());
-    assert!(CodeTable::from_pairs([("鹤".to_owned(), "h".repeat(9))]).is_err());
-    assert!(CodeTable::from_pairs([("鹤".to_owned(), String::new())]).is_err());
+    assert!(AuxCodeTable::from_pairs([("鹤".to_owned(), "H1".to_owned())]).is_err());
+    assert!(AuxCodeTable::from_pairs([("鹤".to_owned(), "h".repeat(9))]).is_err());
+    assert!(AuxCodeTable::from_pairs([("鹤".to_owned(), String::new())]).is_err());
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn qj_round_trip_keeps_every_lookup() {
         ..Metadata::default()
     };
     table.write_qj(&path, &metadata).unwrap();
-    let mapped = CodeTable::open(&path).unwrap();
+    let mapped = AuxCodeTable::open(&path).unwrap();
     assert_eq!(mapped.metadata().unwrap().name, "笔画");
     assert_eq!(mapped.metadata().unwrap().entries, 4);
     assert_eq!(mapped.len(), table.len());
@@ -102,7 +102,7 @@ fn qj_round_trip_keeps_every_lookup() {
 }
 
 #[test]
-fn another_kind_is_not_a_code_table() {
+fn another_kind_is_not_an_aux_code_table() {
     let dir = TempDir::new("wrong-kind");
     let path = dir.path().join("dict.qj");
     qingjian_format::Writer::new(Kind::Dictionary, &Metadata::default())
@@ -111,7 +111,7 @@ fn another_kind_is_not_a_code_table() {
         .write_to(&path)
         .unwrap();
     assert!(matches!(
-        CodeTable::open(&path),
+        AuxCodeTable::open(&path),
         Err(crate::DictionaryError::Format(
             qingjian_format::FormatError::WrongKind { .. }
         ))
@@ -151,17 +151,17 @@ fn headerless_tsv_tolerates_leading_comments_and_blank_lines() {
     assert_eq!(imported.report.read, 2);
     assert_eq!(imported.report.with_code, 2);
     assert_eq!(imported.report.no_code, 0);
-    let table = CodeTable::open(&imported.path).unwrap();
+    let table = AuxCodeTable::open(&imported.path).unwrap();
     assert_eq!(table.len(), 2);
     assert_eq!(table.codes_of("开发").count(), 1);
 }
 
-/// 走一遍导入：写文件 → `import_code_table` → 读回来。目录跟着结果一起返回，调用方拿着它别删。
-fn parse_via_import(name: &str, text: &str) -> (TempDir, super::CodeTableImport) {
+/// 走一遍导入：写文件 → `import_aux_code_table` → 读回来。目录跟着结果一起返回，调用方拿着它别删。
+fn parse_via_import(name: &str, text: &str) -> (TempDir, super::AuxCodeTableImport) {
     let dir = TempDir::new(name);
     let source = dir.path().join(format!("{name}.dict.yaml"));
     std::fs::write(&source, text).unwrap();
-    let imported = import_code_table(&source, &dir.path().join("codes")).unwrap();
+    let imported = import_aux_code_table(&source, &dir.path().join("codes")).unwrap();
     (dir, imported)
 }
 
@@ -173,7 +173,7 @@ fn default_columns_read_word_and_code() {
     assert_eq!(imported.report.read, 3);
     assert_eq!(imported.report.with_code, 3);
     assert_eq!(imported.report.no_code, 0);
-    let table = CodeTable::open(&imported.path).unwrap();
+    let table = AuxCodeTable::open(&imported.path).unwrap();
     assert_eq!(table.len(), 3);
     assert_eq!(table.codes_of("开发").count(), 2);
 }
@@ -192,14 +192,14 @@ fn import_tables_are_merged_relative_to_the_main_file() {
         "---\nname: 主表\nimport_tables:\n  - sub/stem\n...\n开发\tkf\n",
     )
     .unwrap();
-    let imported = import_code_table(
+    let imported = import_aux_code_table(
         &dir.path().join("main.dict.yaml"),
         &dir.path().join("codes"),
     )
     .unwrap();
     assert_eq!(imported.name, "主表");
     assert_eq!(imported.report.read, 2);
-    let table = CodeTable::open(&imported.path).unwrap();
+    let table = AuxCodeTable::open(&imported.path).unwrap();
     assert_eq!(table.len(), 2);
     assert_eq!(table.code_with_prefix("开发", "k"), Some("kf"));
     assert_eq!(table.code_with_prefix("鹤", "h"), Some("hn"));
@@ -213,7 +213,7 @@ fn skips_bad_codes_but_keeps_the_rest() {
     assert_eq!(imported.report.with_code, 2);
     assert_eq!(imported.report.no_code, 1);
     assert_eq!(imported.report.skipped, 1);
-    let table = CodeTable::open(&imported.path).unwrap();
+    let table = AuxCodeTable::open(&imported.path).unwrap();
     // `hn zz` 里空格分开的两个码：合法的收下，非法的丢掉
     assert_eq!(table.code_with_prefix("开", "h"), Some("hn"));
 }
@@ -228,7 +228,7 @@ fn a_file_without_any_code_is_rejected() {
     )
     .unwrap();
     assert!(matches!(
-        import_code_table(&source, &dir.path().join("codes")),
+        import_aux_code_table(&source, &dir.path().join("codes")),
         Err(crate::DictionaryError::NoCodeEntries)
     ));
 }
@@ -247,14 +247,14 @@ fn info_reports_broken_files_without_failing() {
             },
         )
         .unwrap();
-    let info = code_table_info(&good);
+    let info = aux_code_table_info(&good);
     assert_eq!(info.name, "笔画");
     assert_eq!(info.entries, 4);
     assert_eq!(info.license, "OFL-1.1");
     assert!(!info.broken);
     let broken = dir.path().join("broken.qj");
     std::fs::write(&broken, b"not a qj file at all, and long enough").unwrap();
-    let info = code_table_info(&broken);
+    let info = aux_code_table_info(&broken);
     assert!(info.broken);
     assert_eq!(info.name, "broken");
     assert_eq!(info.entries, 0);
@@ -262,25 +262,25 @@ fn info_reports_broken_files_without_failing() {
 
 #[test]
 fn tsv_parse_reads_word_and_code() {
-    let table = CodeTable::parse("# 注释\n开发\tkf\n\n鹤\thn\n").unwrap();
+    let table = AuxCodeTable::parse("# 注释\n开发\tkf\n\n鹤\thn\n").unwrap();
     assert_eq!(table.len(), 2);
-    assert!(CodeTable::parse("开发\tkf\n鹤\tH1\n").is_err());
+    assert!(AuxCodeTable::parse("开发\tkf\n鹤\tH1\n").is_err());
 }
 
 /// 同一入口吃两种文本：Rime `.dict.yaml`（与导入同一套解析）与 `词\t码` TSV。
 #[test]
 fn reads_rime_dict_yaml_and_tsv_from_the_same_entry_point() {
     let rime = "---\nname: 形码\ncolumns: [text, code, weight]\n...\n开发\tkf\t100\n开放\tkfang\n";
-    let table = CodeTable::from_text(rime).unwrap();
+    let table = AuxCodeTable::from_text(rime).unwrap();
     assert_eq!(table.len(), 2);
     assert_eq!(table.code_with_prefix("开发", "k"), Some("kf"));
 
     let tsv = "# 注释\n开发\tkf\n";
-    assert_eq!(CodeTable::from_text(tsv).unwrap().len(), 1);
+    assert_eq!(AuxCodeTable::from_text(tsv).unwrap().len(), 1);
 
     // 纯词表（没有码列）报错，不静默出一张空表
     assert!(matches!(
-        CodeTable::from_text("---\nname: 纯词表\ncolumns: [text, weight]\n...\n开发\t100\n"),
+        AuxCodeTable::from_text("---\nname: 纯词表\ncolumns: [text, weight]\n...\n开发\t100\n"),
         Err(DictionaryError::NoCodeEntries)
     ));
 }

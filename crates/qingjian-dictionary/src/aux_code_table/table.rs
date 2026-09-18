@@ -26,7 +26,7 @@ pub fn is_valid_code(code: &str) -> bool {
 
 /// 码表：词 → 码的映射。从 `.qj` 打开时四段数据都是映射文件里的一段，查询代码不区分。
 #[derive(Debug, Default)]
-pub struct CodeTable {
+pub struct AuxCodeTable {
     /// 所有词文本首尾相接。
     words: Text,
 
@@ -46,7 +46,7 @@ pub struct CodeTable {
     metadata: Option<Metadata>,
 }
 
-impl CodeTable {
+impl AuxCodeTable {
     /// 用 `(词, 码)` 对造一张表。
     ///
     /// 重复的 `(词, 码)` 去掉；同一个词的多条码都保留（一词多码）。码非法时报错，
@@ -158,7 +158,7 @@ impl CodeTable {
 
     /// 打开 `.qj` 码表：映射四个分节，逐条校验偏移落在 arena 内、条目按词有序、哈希索引自洽。
     pub fn open(path: &Path) -> Result<Self, DictionaryError> {
-        let container = Container::open(path, Kind::CodeTable)?;
+        let container = Container::open(path, Kind::AuxCodeTable)?;
         let words = container.text(TEXT_TAG)?;
         let codes = container.text(CODE_TAG)?;
         let entries: Table<CodeEntry> = container.table(ENTR_TAG)?;
@@ -217,7 +217,7 @@ impl CodeTable {
             entries: self.entries.len() as u64,
             ..metadata.clone()
         };
-        Writer::new(Kind::CodeTable, &metadata)?
+        Writer::new(Kind::AuxCodeTable, &metadata)?
             .section(TEXT_TAG, self.words.as_bytes())
             .section(CODE_TAG, self.codes.as_bytes())
             .section(ENTR_TAG, self.entries.as_bytes())
@@ -289,13 +289,13 @@ fn looks_like_rime(text: &str) -> bool {
         .is_some_and(|line| line == "---" || line.starts_with("name:"))
 }
 
-impl AuxCodeLookup for CodeTable {
+impl AuxCodeLookup for AuxCodeTable {
     fn code_with_prefix<'a>(&'a self, word: &str, prefix: &str) -> Option<&'a str> {
         // inherent 的 codes_of 是迭代器版本，这里要用它（别递归回 trait）
-        CodeTable::codes_of(self, word).find(|code| code.starts_with(prefix))
+        AuxCodeTable::codes_of(self, word).find(|code| code.starts_with(prefix))
     }
 
     fn codes_of<'a>(&'a self, word: &str) -> Vec<&'a str> {
-        CodeTable::codes_of(self, word).collect()
+        AuxCodeTable::codes_of(self, word).collect()
     }
 }

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use qingjian_dictionary::{AuxCodeLookup, CodeTable};
+use qingjian_dictionary::{AuxCodeLookup, AuxCodeTable};
 
 use crate::AuxCodeConfig;
 
@@ -43,7 +43,7 @@ pub fn load(
                 tracing::debug!(name = %stem, "码表已关闭，跳过");
                 continue;
             }
-            match CodeTable::open(&path) {
+            match AuxCodeTable::open(&path) {
                 Ok(table) => {
                     tracing::info!(
                         name = %table.metadata().map_or(stem.as_str(), |m| m.name.as_str()),

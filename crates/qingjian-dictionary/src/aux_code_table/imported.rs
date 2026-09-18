@@ -2,11 +2,11 @@
 
 use std::path::PathBuf;
 
-use super::report::CodeTableImportReport;
+use super::report::AuxCodeTableImportReport;
 
 /// 一次码表导入的结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CodeTableImport {
+pub struct AuxCodeTableImport {
     /// 写出的 `.qj`。
     pub path: PathBuf,
 
@@ -14,5 +14,5 @@ pub struct CodeTableImport {
     pub name: String,
 
     /// 导入统计。
-    pub report: CodeTableImportReport,
+    pub report: AuxCodeTableImportReport,
 }

@@ -33,6 +33,10 @@ const ATTRIBUTIONS: &[(&str, &str)] = &[
         "CEFR-J Wordlist v1.5（Yukio Tono，cefr-j.org）；Octanove Vocabulary Profile C1/C2（CC BY-SA 4.0）；JLPT 词表（tanos.co.uk，CC BY）。",
     ),
     (
+        "五笔码表",
+        "86 五笔极点码表（sxjudya/rime-wubi86-jidian，Apache-2.0）；编码来自上游，词频由青简词库按词面回填。",
+    ),
+    (
         "笔画码表",
         "CNS11643 全字庫筆順資料（中華民國數位發展部，政府資料開放授權條款第 1 版 / OFL-1.1）；大陆笔顺按通用规范字表校正。",
     ),

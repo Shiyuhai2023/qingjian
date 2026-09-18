@@ -8,7 +8,7 @@
 //! - 词里有一个字不在笔画表里，整词没有码、跳过并计入统计：宁可不出，也不用缺字的词凑半条码
 //!   （四字以上按规则用不到中间的字，同样要求整词都在表里）。
 //!
-//! 产物是 `CodeTable` 的 `.qj`（辅码态两段式查询用的 `Kind::CodeTable` 容器）；元数据的缺省值
+//! 产物是 `AuxCodeTable` 的 `.qj`（辅码态两段式查询用的 `Kind::AuxCodeTable` 容器）；元数据的缺省值
 //! （名称「笔画」、OFL-1.1、CNS11643 署名）在 `pack` 里，许可依据见设计文档「许可」一节。
 
 use std::collections::{HashMap, HashSet};
@@ -17,7 +17,7 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::time::Instant;
 
-use qingjian_dictionary::{CodeTable, Dictionary};
+use qingjian_dictionary::{AuxCodeTable, Dictionary};
 use qingjian_format::Metadata;
 
 use crate::error::ConvertError;
@@ -126,7 +126,7 @@ pub fn build(
     if stats.words == 0 {
         tracing::warn!(path = %dict.display(), "词库是空的：码表不会有条目");
     }
-    let table = CodeTable::from_pairs(pairs)?;
+    let table = AuxCodeTable::from_pairs(pairs)?;
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
     }

@@ -3,7 +3,7 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use qingjian_dictionary::CodeTable;
+use qingjian_dictionary::AuxCodeTable;
 use qingjian_format::Metadata;
 
 use crate::codes::{CodeStats, StrokeTable, build, key, single_char_code, word_code};
@@ -129,7 +129,7 @@ fn empty_inputs_produce_an_empty_code_table() {
     let stats = build(&stroke, &dict, &out, &metadata).unwrap();
     assert_eq!(stats, CodeStats::default());
 
-    let table = CodeTable::open(&out).unwrap();
+    let table = AuxCodeTable::open(&out).unwrap();
     assert!(table.is_empty());
     assert_eq!(table.len(), 0);
     assert_eq!(table.word_count(), 0);
@@ -161,7 +161,7 @@ fn build_writes_codes_for_the_whole_dictionary() {
     assert_eq!(stats.coded, 3);
     assert_eq!(stats.skipped, 1); // 开丁：丁 不在笔画表里
 
-    let table = CodeTable::open(&out).unwrap();
+    let table = AuxCodeTable::open(&out).unwrap();
     assert_eq!(table.len(), 3);
     assert_eq!(table.word_count(), 3);
     assert_eq!(table.metadata().unwrap().entries, 3);
