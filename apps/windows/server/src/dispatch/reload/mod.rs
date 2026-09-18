@@ -191,8 +191,8 @@ impl Router {
     /// 应用新配置。学习语言变了换释义表（词汇等级表启动时已全装，不用换）。
     fn apply_config(&mut self, config: &Config) {
         self.engine.set_fuzzy(config.fuzzy);
-        self.engine.set_shuangpin(config.general.shuangpin());
-        self.engine.set_zhuyin_mode(config.general.zhuyin);
+        // 拼音侧与形码侧一起装配（双拼 / 注音 / 混输都在里面）
+        self.reload_code_table(config.general.scheme(), config.general.wubi());
         self.engine.set_traditional_mode(config.general.traditional);
         self.engine.set_learning(config.general.learning);
         self.engine.set_mode_keys(config.shortcut.mode);
@@ -203,6 +203,8 @@ impl Router {
         self.engine.set_aux_enabled(config.aux_code.enabled);
         self.engine.set_aux_show(config.general.aux_code_show);
         self.engine.set_chinese_first(config.general.chinese_first);
+        self.engine
+            .set_shift_letter_compose(config.general.shift_letter.compose());
         let previous = self.config.render_settings();
         self.config = RouterConfig::from(config);
         let settings = self.config.render_settings();

@@ -2,6 +2,7 @@
 
 mod aux_code;
 mod cloud;
+mod code;
 mod correction;
 mod custom;
 mod emoji;

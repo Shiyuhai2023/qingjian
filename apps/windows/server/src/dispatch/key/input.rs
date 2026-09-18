@@ -124,13 +124,20 @@ impl Router {
                     Effect::Changed(Some(self.engine.take_raw()))
                 }
             }
+            codes::TAB if event.modifiers.shift => {
+                self.page(-1);
+                Effect::Navigated
+            }
             codes::TAB if self.engine.english_mode() => {
                 Effect::Changed(Some(self.commit_highlighted()))
             }
-            // 中文模式 Tab：有整句补全就接受，否则交还应用（缩进 / 跳焦点）。
+            // 中文模式 Tab：有整句补全就接受，否则下一页。
             codes::TAB => match self.sentence.take() {
                 Some(sentence) => Effect::Changed(Some(self.engine.accept_prediction(&sentence))),
-                None => Effect::Passthrough,
+                None => {
+                    self.page(1);
+                    Effect::Navigated
+                }
             },
             codes::DOWN => {
                 self.move_highlight(1);
@@ -168,17 +175,17 @@ impl Router {
         }
     }
 
-    /// 中文模式：小写字母进拼音；Shift 大写字母是临时打英文，组句中先把拼音原样上屏；
+    /// 中文模式：字母进拼音。缺省 Shift 大写是临时打英文——组句中先把拼音原样上屏、字母交给应用；
+    /// 配 `[general] shift_letter = "compose"` 时大写也收进缓冲区（Core 按小写匹配、原样上屏时还原大小写）。
     /// 没在组句时的其他字符走全角标点（与 macOS 壳一致，组句中的标点仍进英文直输段）。
     fn apply_chinese(&mut self, c: char, event: &KeyEvent) -> Effect {
-        if c.is_ascii_uppercase() {
-            let raw = self.composing().then(|| self.engine.take_raw());
-            self.engine.note_passthrough(c);
-            return with_prefix(raw, Effect::Passthrough, c);
-        }
+        // 注音模式下数字与 `- ; , . /` 就是键盘上的音节键，跟着进缓冲区。
         let is_zhuyin_key = self.engine.is_zhuyin_mode()
             && (c.is_ascii_digit() || matches!(c, '-' | ';' | ',' | '.' | '/'));
-        if c.is_ascii_lowercase() || is_zhuyin_key {
+        if c.is_ascii_lowercase()
+            || is_zhuyin_key
+            || (c.is_ascii_uppercase() && self.config.shift_letter_compose)
+        {
             // 辅码态：字母进码段（逐键即筛），不进拼音缓冲区
             if c.is_ascii_lowercase() && self.engine.push_aux_code(c) {
                 return Effect::Changed(None);
@@ -186,16 +193,22 @@ impl Router {
             self.engine.push(c);
             return Effect::Changed(None);
         }
+        if c.is_ascii_uppercase() {
+            let raw = self.composing().then(|| self.engine.take_raw());
+            self.engine.note_passthrough(c);
+            return with_prefix(raw, Effect::Passthrough, c);
+        }
         if !self.composing() {
             return self.apply_punctuation(c, event);
         }
         self.apply_printable(c, event)
     }
 
-    /// 当前模式开着全角就让 Core 转（数字后的 `.` 保持半角）；转不了的原样交给应用并告知 Core。
+    /// 当前模式开着全角就让 Core 转（数字后的 `.` 与小键盘的键保持半角）；转不了的原样交给应用并告知 Core。
     fn apply_punctuation(&mut self, c: char, event: &KeyEvent) -> Effect {
         let english = event.modifiers.caps || event.modifiers.english_mode;
-        if self.full_width_for(english)
+        if !codes::is_keypad(event.virtual_key)
+            && self.full_width_for(english)
             && let Some(text) = self.engine.punctuate(c)
         {
             return Effect::Changed(Some(text.to_owned()));

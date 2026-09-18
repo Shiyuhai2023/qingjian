@@ -3,7 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use qingjian_dictionary::{AuxCodeLookup, CodeTable};
+use qingjian_dictionary::{AuxCodeLookup, AuxCodeTable};
 use qingjian_platform::Config;
 use qingjian_platform::protocol::{Frame, PreeditKind, ScreenRect};
 use qingjian_windows_server::dispatch::{CandidateSink, DataDirs, RenderSettings};
@@ -23,7 +23,7 @@ fn router_with_aux(config: RouterConfig) -> Router {
     })
     .expect("assemble engine from sample data");
     let table: Arc<dyn AuxCodeLookup> = Arc::new(
-        CodeTable::from_pairs([
+        AuxCodeTable::from_pairs([
             ("开发".to_owned(), "kf".to_owned()),
             ("开发者".to_owned(), "kfz".to_owned()),
             ("开".to_owned(), "kh".to_owned()),
@@ -34,14 +34,8 @@ fn router_with_aux(config: RouterConfig) -> Router {
     engine.set_aux_enabled(true);
     engine.set_aux_code_key(config.aux_code_key, config.page_keys);
     let mut router = Router::new(engine, config);
-    assert_eq!(
-        router.handle(ClientMessage::OpenSession {
-            session: SESSION,
-            app: None,
-            protocol: PROTOCOL_VERSION,
-        }),
-        None
-    );
+    // 协议 6 起开会话回一条按键行为设置（SessionOpened），support 的 helper 负责吃掉它
+    open_session(&mut router, SESSION, None);
     router
 }
 
@@ -341,7 +335,7 @@ fn a_new_code_table_in_the_user_dir_hot_reloads() {
     assert!(frame.preedit.iter().all(|s| s.kind != PreeditKind::AuxCode));
     press(&mut router, function_key(0x1B));
 
-    let table = CodeTable::from_pairs([("开发".to_owned(), "kf".to_owned())]).unwrap();
+    let table = AuxCodeTable::from_pairs([("开发".to_owned(), "kf".to_owned())]).unwrap();
     table
         .write_qj(&codes.join("mine.qj"), &Default::default())
         .unwrap();
@@ -364,7 +358,7 @@ fn a_rewritten_code_table_hot_reloads() {
     let _ = std::fs::remove_dir_all(&dir);
     let codes = dir.join("codes");
     std::fs::create_dir_all(&codes).unwrap();
-    let first = CodeTable::from_pairs([("开发".to_owned(), "kf".to_owned())]).unwrap();
+    let first = AuxCodeTable::from_pairs([("开发".to_owned(), "kf".to_owned())]).unwrap();
     first
         .write_qj(&codes.join("mine.qj"), &Default::default())
         .unwrap();
@@ -382,7 +376,7 @@ fn a_rewritten_code_table_hot_reloads() {
     );
     assert!(router.engine_mut().aux_codes().is_empty());
 
-    let rewritten = CodeTable::from_pairs([("开发".to_owned(), "kh".to_owned())]).unwrap();
+    let rewritten = AuxCodeTable::from_pairs([("开发".to_owned(), "kh".to_owned())]).unwrap();
     rewritten
         .write_qj(&codes.join("mine.qj"), &Default::default())
         .unwrap();

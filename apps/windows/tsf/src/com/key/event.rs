@@ -1,8 +1,8 @@
 //! 把 TSF 送来的虚拟键码翻成协议的 [`KeyEvent`]，以及「组句中哪些键要吃」的判定。
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyState, VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_ESCAPE, VK_LSHIFT, VK_LWIN,
-    VK_MENU, VK_RETURN, VK_RSHIFT, VK_RWIN, VK_SHIFT, VK_SPACE, VK_TAB,
+    GetKeyState, VIRTUAL_KEY, VK_BACK, VK_CAPITAL, VK_CONTROL, VK_ESCAPE, VK_LWIN, VK_MENU,
+    VK_RETURN, VK_RWIN, VK_SHIFT, VK_SPACE, VK_TAB,
 };
 
 use qingjian_platform::protocol::{KeyEvent, KeyModifiers};
@@ -26,11 +26,7 @@ pub(crate) fn is_mode_letter(vk: u32) -> bool {
     matches!(vk, 0x56 | 0x55 | 0x49)
 }
 
-pub(crate) fn is_shift(vk: u32) -> bool {
-    vk == VK_SHIFT.0 as u32 || vk == VK_LSHIFT.0 as u32 || vk == VK_RSHIFT.0 as u32
-}
-
-/// 组句中要吃的功能键：退格 / Tab / 回车 / Esc / 空格 / 数字。Tab 没有整句补全时由 Router 判 Passthrough。
+/// 组句中要吃的功能键：退格 / Tab / 回车 / Esc / 空格 / 数字。Tab 由 Router 决定接受整句补全或翻页，Shift+Tab 上一页。
 pub(crate) fn is_edit(vk: u32) -> bool {
     matches!(
         VIRTUAL_KEY(vk as u16),

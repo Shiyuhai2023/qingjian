@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use qingjian_core::is_valid_aux_code_key;
-use qingjian_dictionary::{DictionaryError, code_table_info, import_code_table};
+use qingjian_dictionary::{DictionaryError, aux_code_table_info, import_aux_code_table};
 use qingjian_platform::code_tables;
 use windows_reactor::*;
 
@@ -69,7 +69,7 @@ fn bundled_list(settings: &Settings, context: &mut ViewContext<Settings>) -> Vie
     }
     let mut rows: Vec<KeyedView> = Vec::with_capacity(tables.len());
     for (stem, path) in tables {
-        let info = code_table_info(&path);
+        let info = aux_code_table_info(&path);
         let enabled = settings.config.aux_code.is_enabled(&stem);
         let label = entry_title(&info.name, info.entries, &info.license, true, info.broken);
         let for_msg = stem.clone();
@@ -97,7 +97,7 @@ fn user_list(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     }
     let mut rows: Vec<KeyedView> = Vec::with_capacity(tables.len());
     for (stem, path) in tables {
-        let info = code_table_info(&path);
+        let info = aux_code_table_info(&path);
         let enabled = settings.config.aux_code.is_enabled(&stem);
         let label = entry_title(&info.name, info.entries, &info.license, false, info.broken);
         let for_msg = stem.clone();
@@ -221,7 +221,7 @@ pub(crate) fn import(settings: &mut Settings) {
     else {
         return;
     };
-    match import_code_table(&source, &user_dir(settings)) {
+    match import_aux_code_table(&source, &user_dir(settings)) {
         Ok(imported) => {
             let report = imported.report;
             settings.notice.succeed(format!(
