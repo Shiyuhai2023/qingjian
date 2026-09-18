@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+use crate::stroke::StrokeOptions;
+
 #[derive(Debug, Parser)]
 #[command(
     name = "qingjian-dict-convert",
@@ -177,56 +179,9 @@ pub enum Command {
         max_chars: usize,
     },
 
-    /// 笔画表：CNS11643 全字庫「筆順資料」+ 大陆序覆盖表 → `codes/stroke.tsv`（随包笔画码表的源数据，见模块文档）
-    Stroke {
-        /// CNS 筆順資料（`CNS_strokes_sequence.txt`）：`CNS 字碼<TAB>1-5 序列`
-        #[arg(long, default_value = "data/cns/CNS_strokes_sequence.txt")]
-        cns_seq: PathBuf,
-
-        /// CNS→Unicode 对照表（`CNS2UNICODE_Unicode*.txt`）：给文件或目录（目录取其中的对照表）
-        #[arg(long, default_value = "data/cns", num_args = 1..)]
-        cns_map: Vec<PathBuf>,
-
-        /// 官方筆畫數（`CNS_stroke.txt`）：与序列长度自洽的字才留，不给就不过滤
-        #[arg(long)]
-        cns_count: Option<PathBuf>,
-
-        /// 自洽过滤的容差：序列长度与筆畫數之差超过它的字丢掉
-        #[arg(long, default_value_t = 1)]
-        max_diff: usize,
-
-        /// 字表白名单（缺省通用规范字表）：只出表里的字，按表序排列
-        #[arg(long, default_value = "assets/lexicon/01_characters/standard_8105.tsv")]
-        filter: PathBuf,
-
-        /// 大陆序覆盖表：部件重写规则 + 例外字 + 整字补录
-        #[arg(long, default_value = "assets/stroke/prc-rules.tsv")]
-        prc_rules: PathBuf,
-
-        /// 产物路径；缺省写到 <输出目录>/codes/stroke.tsv
-        #[arg(long)]
-        output: Option<PathBuf>,
-
-        /// 写完再按抽样对照表比对大陆笔画数，白名单之外一处不符就退出码非 0
-        #[arg(long)]
-        verify: bool,
-
-        /// 抽样用的字表：按表序每 `--stride` 字取一个
-        #[arg(long, default_value = "assets/lexicon/01_characters/level1_3500.tsv")]
-        sample: PathBuf,
-
-        /// 抽样密度：每几字取一个
-        #[arg(long, default_value_t = 12)]
-        stride: usize,
-
-        /// 对照表（`字<TAB>大陆笔画数`）：抽样字表里每个字都要有
-        #[arg(long, default_value = "tools/dict-convert/testdata/prc-counts-l1.tsv")]
-        reference: PathBuf,
-
-        /// 残留差异白名单（`字<TAB>本表笔画数<TAB>对照笔画数<TAB>说明`）
-        #[arg(long, default_value = "assets/stroke/residual-whitelist.tsv")]
-        whitelist: PathBuf,
-    },
+    /// 笔画表：CNS11643 全字庫「筆順資料」+ 大陆序覆盖表 → `codes/stroke.tsv`（随包笔画码表的源数据，见模块文档）。
+    /// 参数的 clap 定义在 `stroke::StrokeOptions`，加参数只动那一处
+    Stroke(StrokeOptions),
 
     /// 把 TSV 打包成 `.qj` 容器（mmap 直接用，启动近零耗时）：`dict` 读 dict.tsv 写 dict.qj，`lm` 读 lm-unigram/bigram.tsv 写 lm.qj，
     /// `glossary --language en` 读 glossary-en.tsv 写 glossary-en.qj；`model` 把训练仓库导出的三件套目录（缺省 data/model）
