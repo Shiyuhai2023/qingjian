@@ -190,6 +190,11 @@ impl Router {
             if c.is_ascii_lowercase() && self.engine.push_aux_code(c) {
                 return Effect::Changed(None);
             }
+            // 大写（shift_letter_compose）落在辅码态：先清码段回拼音态（与 Esc 同语义）再收进缓冲区；
+            // 码段不清会挂在已变化的缓冲区上继续筛
+            if c.is_ascii_uppercase() && self.engine.in_aux() {
+                self.engine.clear_aux();
+            }
             self.engine.push(c);
             return Effect::Changed(None);
         }
@@ -321,14 +326,9 @@ impl Router {
             }
             return Effect::Changed(Some(self.commit_highlighted()));
         }
-        // 表达式 / 问字模式下的其他字符不进缓冲区（与 macOS 壳一致）：先把高亮候选上屏，再按没在组句处理这个键。
-        if c != '\'' && (expression || self.engine.question_mode()) {
-            let committed = self.commit_highlighted();
-            let effect = self.apply_punctuation(c, event);
-            return with_prefix(Some(committed), effect, c);
-        }
-        // 辅码态里敲标点：先上屏当前高亮候选（码段随之清空），再按组句外标点语义转全角
-        if self.engine.in_aux() {
+        // 表达式 / 问字模式下的其他字符不进缓冲区（与 macOS 壳一致），辅码态里敲标点同理（码段随之清空）：
+        // 都是先把高亮候选上屏，再按没在组句处理这个键、标点按组句外语义转全角
+        if (c != '\'' && (expression || self.engine.question_mode())) || self.engine.in_aux() {
             let committed = self.commit_highlighted();
             let effect = self.apply_punctuation(c, event);
             return with_prefix(Some(committed), effect, c);

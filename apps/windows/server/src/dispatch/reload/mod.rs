@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
 use qingjian_core::{Engine, Language, NoGlossFiller, NoPredictor, NoTranslator};
-use qingjian_platform::{Config, code_tables, extra_dictionaries};
+use qingjian_platform::{Config, code_tables};
 use qingjian_predict::{CloudGlossFiller, CloudPredictor, PredictConfig};
 
 pub(super) use self::state::ConfigReload;
@@ -106,16 +106,8 @@ impl Router {
         dirs: DataDirs,
     ) {
         let last_mtime = mtime(&config_path);
-        let code_files = dirs
-            .user_codes
-            .as_deref()
-            .map(code_tables::snapshot)
-            .unwrap_or_default();
-        let dictionary_files = dirs
-            .user_dicts
-            .as_deref()
-            .map(extra_dictionaries::snapshot)
-            .unwrap_or_default();
+        let code_files = dirs.code_snapshot();
+        let dictionary_files = dirs.dict_snapshot();
         self.reload = Some(ConfigReload {
             config_path,
             last_check: Instant::now(),
@@ -142,12 +134,7 @@ impl Router {
         }
         reload.last_check = Instant::now();
         // 用户 `dicts/` 目录文件增删或更新：与配置改动无关，下一拍就生效
-        let files = reload
-            .dirs
-            .user_dicts
-            .as_deref()
-            .map(extra_dictionaries::snapshot)
-            .unwrap_or_default();
+        let files = reload.dirs.dict_snapshot();
         if files != reload.dictionary_files {
             // 配置损坏也继续使用上次有效的词库开关；文件变化不触发配置重试。
             self.engine
@@ -162,12 +149,7 @@ impl Router {
         };
         // 用户 `codes/` 下的文件增删或更新（设置页刚导入 / 移除一张码表）：不必等配置改动，下一拍就生效
         let codes_changed = {
-            let current = reload
-                .dirs
-                .user_codes
-                .as_deref()
-                .map(code_tables::snapshot)
-                .unwrap_or_default();
+            let current = reload.dirs.code_snapshot();
             let changed = current != reload.code_files;
             reload.code_files = current;
             changed
@@ -254,12 +236,7 @@ impl Router {
             &reload.applied_aux_code,
         );
         if let Some(reload) = &mut self.reload {
-            reload.code_files = reload
-                .dirs
-                .user_codes
-                .as_deref()
-                .map(code_tables::snapshot)
-                .unwrap_or_default();
+            reload.code_files = reload.dirs.code_snapshot();
         }
         tracing::info!(count = tables.len(), "辅码码表已重装");
         self.engine.set_aux_codes(tables);

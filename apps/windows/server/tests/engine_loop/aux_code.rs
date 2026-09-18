@@ -33,6 +33,8 @@ fn router_with_aux(config: RouterConfig) -> Router {
     engine.set_aux_codes(vec![table]);
     engine.set_aux_enabled(true);
     engine.set_aux_code_key(config.aux_code_key, config.page_keys);
+    // 生产接线里 Engine 侧的同名开关与 RouterConfig 同源设置（main.rs），这里对齐
+    engine.set_shift_letter_compose(config.shift_letter_compose);
     let mut router = Router::new(engine, config);
     // 协议 6 起开会话回一条按键行为设置（SessionOpened），support 的 helper 负责吃掉它
     open_session(&mut router, SESSION, None);
@@ -202,6 +204,24 @@ fn escape_in_aux_only_clears_the_code() {
     assert_eq!(preedit(&frame), "kai'fa");
     assert!(frame.preedit.iter().all(|s| s.kind != PreeditKind::AuxCode));
     assert!(candidate_texts(&frame).contains(&"开发"));
+}
+
+/// `shift_letter = "compose"` 下辅码态里敲大写：先清码段回拼音态（与 Esc 同语义），字母照常收进缓冲区。
+#[test]
+fn uppercase_with_shift_letter_compose_exits_aux_before_pushing() {
+    let mut router = router_with_aux(RouterConfig {
+        shift_letter_compose: true,
+        ..RouterConfig::default()
+    });
+    type_letters(&mut router, "kaifa");
+    press(&mut router, letter(';'));
+    press(&mut router, letter('k'));
+    let (outcome, committed, frame) = press(&mut router, letter('G'));
+    assert_eq!(outcome, KeyOutcome::Consumed);
+    assert!(committed.is_none());
+    assert!(preedit(&frame).starts_with("kai'fa"));
+    assert!(!preedit(&frame).contains(';'));
+    assert!(frame.preedit.iter().all(|s| s.kind != PreeditKind::AuxCode));
 }
 
 /// `[general] aux_code_show` 随帧下发（候选窗按它决定要不要拼码注记）。
