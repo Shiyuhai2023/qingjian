@@ -18,7 +18,7 @@ use std::time::Instant;
 
 use clap::Parser;
 use qingjian_core::{EmojiTable, Engine, FuzzyRules, Language};
-use qingjian_dictionary::{AuxCodeLookup, CodeTable, Dictionary, WordList};
+use qingjian_dictionary::{AuxCodeLookup, AuxCodeTable, Dictionary, WordList};
 use qingjian_learning::FrequencyLearner;
 use qingjian_lm::BigramModel;
 use qingjian_platform::Config;
@@ -272,7 +272,7 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
     if !args.aux_table.is_empty() {
         let mut tables: Vec<Arc<dyn AuxCodeLookup>> = Vec::new();
         for path in &args.aux_table {
-            let table = CodeTable::from_path(path)?;
+            let table = AuxCodeTable::from_path(path)?;
             tracing::info!(
                 path = %path.display(),
                 entries = table.len(),

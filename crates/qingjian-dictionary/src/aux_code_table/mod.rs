@@ -1,4 +1,4 @@
-//! 码表：词 → 码的映射（`CodeTable` 的 `.qj`），辅码态逐键即筛用。
+//! 辅码码表：词 → 码的映射（`AuxCodeTable` 的 `.qj`），辅码态逐键即筛用；与五笔那类编码 → 词的形码码表方向相反。
 //!
 //! 码表不复用词库的存储：词库的 `Slot` 没有码字段，而且 `de` / `he` 这类两位码同时是合法拼音音节，
 //! 塞进同一个键索引会让两套约束互相污染（见 `docs/design/aux-code.md`）。
@@ -18,9 +18,9 @@ mod table;
 #[cfg(test)]
 mod tests;
 
-pub use import::import_code_table;
-pub use imported::CodeTableImport;
-pub use info::{CodeTableInfo, code_table_info};
+pub use import::import_aux_code_table;
+pub use imported::AuxCodeTableImport;
+pub use info::{AuxCodeTableInfo, aux_code_table_info};
 pub use lookup::AuxCodeLookup;
-pub use report::CodeTableImportReport;
-pub use table::CodeTable;
+pub use report::AuxCodeTableImportReport;
+pub use table::AuxCodeTable;
