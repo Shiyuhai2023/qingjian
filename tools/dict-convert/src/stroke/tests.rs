@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::stroke::normalize;
 use crate::stroke::rules::PrcRules;
-use crate::stroke::verify::{compare, sample};
+use crate::stroke::verify::{compare, compare_first, sample};
 
 /// 覆盖表里的四类锚点各来一条，看改写落在哪里。
 #[test]
@@ -88,4 +88,23 @@ fn compare_flags_only_unwhitelisted() {
     assert_eq!(count, 3);
     assert_eq!(used, whitelist);
     assert_eq!(unmatched, 1);
+}
+/// 首笔对照只放真正的类别不符：几何近似对与不可判的 ? 都不算，白名单只接剩下的。
+#[test]
+fn first_compare_accepts_approximations_only() {
+    let chars: Vec<char> = "一月主皮".chars().collect();
+    let produced: HashMap<char, char> = [('一', 'h'), ('月', 'p'), ('主', 'h'), ('皮', 'p')]
+        .into_iter()
+        .collect();
+    let expected: HashMap<char, char> = [('一', 'h'), ('月', 's'), ('主', '?'), ('皮', 'h')]
+        .into_iter()
+        .collect();
+    let whitelist: HashSet<char> = ['皮'].into_iter().collect();
+    let outcome = compare_first(&chars, &produced, &expected, &whitelist);
+    // 一 相等，月 是竖撇的近似对（p 对 s）
+    assert_eq!(outcome.compared, 2);
+    // 主 的对照不可判
+    assert_eq!(outcome.incomparable, 1);
+    assert_eq!(outcome.used, whitelist);
+    assert_eq!(outcome.unmatched, 0);
 }

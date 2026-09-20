@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+use crate::mmh::MmhReferenceOptions;
 use crate::stroke::StrokeOptions;
 
 #[derive(Debug, Parser)]
@@ -182,6 +183,10 @@ pub enum Command {
     /// 笔画表：CNS11643 全字庫「筆順資料」+ 大陆序覆盖表 → `codes/stroke.tsv`（随包笔画码表的源数据，见模块文档）。
     /// 参数的 clap 定义在 `stroke::StrokeOptions`，加参数只动那一处
     Stroke(StrokeOptions),
+
+    /// 笔画对照表：从 hanzi-writer-data（Make Me a Hanzi；Arphic 许可，不进仓库）生成 `stroke --verify`
+    /// 用的两张开发期对照表到 `data/mmh/`（笔画数、首笔几何类别，见模块文档与 assets/stroke/README.md）
+    MmhReference(MmhReferenceOptions),
 
     /// 把 TSV 打包成 `.qj` 容器（mmap 直接用，启动近零耗时）：`dict` 读 dict.tsv 写 dict.qj，`lm` 读 lm-unigram/bigram.tsv 写 lm.qj，
     /// `glossary --language en` 读 glossary-en.tsv 写 glossary-en.qj；`model` 把训练仓库导出的三件套目录（缺省 data/model）

@@ -12,7 +12,8 @@
 //! 4. `--prc-rules`：大陆序覆盖表（`assets/stroke/prc-rules.tsv`），台湾序按部件重写成大陆序；
 //! 5. `--filter`：字表白名单（缺省通用规范字表 8,105 字），只出表里的字，按表序排列。
 //!
-//! `--verify` 再按抽样对照表逐字比对大陆笔画数：不符的字必须都在白名单里，否则退出码非 0。
+//! `--verify` 再对照大陆规范：笔画数按抽样比对、首笔按字表全量比对，不符的字必须都在白名单里，
+//! 否则退出码非 0（对照表由 `mmh-reference` 生成到 `data/mmh/`，找不到哪张就跳过哪张）。
 //! 数据来源、许可与验收记录见 `assets/stroke/README.md`；随包前由 `pack codes`（见 `codes` 模块）按取码规则把它与词库算成码表。
 
 mod options;
@@ -80,6 +81,8 @@ pub fn convert(options: &StrokeOptions, out_dir: &Path) -> Result<(), ConvertErr
     for ch in &table {
         let original = sequences.get(ch);
         if let (Some(sequence), Some(count)) = (original, stroke_counts.get(ch))
+            // 整字覆盖是人工裁定，优先于 CNS 序列与筆畫數的自洽性（诞 这类被自洽过滤丢掉的字靠它补录）
+            && rules.override_sequence(*ch).is_none()
             && sequence.len().abs_diff(*count as usize) > options.max_diff
         {
             inconsistent += 1;
@@ -115,13 +118,7 @@ pub fn convert(options: &StrokeOptions, out_dir: &Path) -> Result<(), ConvertErr
         "已生成笔画表"
     );
     if options.verify {
-        verify::run(
-            &out,
-            &options.sample,
-            options.stride,
-            &options.reference,
-            &options.whitelist,
-        )?;
+        verify::run(options, &out)?;
     }
     Ok(())
 }

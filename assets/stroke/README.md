@@ -11,11 +11,13 @@
 | 字形来源（笔顺序列） | CNS11643 中文標準交換碼全字庫「筆順資料」`CNS_strokes_sequence.txt` | 政府資料開放授權條款第 1 版 **或** OFL-1.1（二选一，可再分发含商用，**需署名**） | 原始 zip 不入库（`data/cns/`，gitignore），只留生成产物 |
 | CNS→Unicode 映射 | 同一数据集的 `MapingTables.zip`（`CNS2UNICODE_Unicode*.txt` 4 个平面） | 同上 | 不入库（`data/cns/`） |
 | 自洽过滤 | 同一数据集的 `CNS_stroke.txt`（筆畫數） | 同上 | 不入库（`data/cns/`） |
-| 抽样对照（**开发期**） | Make Me a Hanzi / hanzi-writer-data 2.0.1 每字 `strokes` 条数（PRC 笔顺） | Arphic Public License；**不随包分发**，只留「字 + 笔画数」这类事实性结论 | `tools/dict-convert/testdata/prc-counts-l1.tsv`（一级字 3,500 行） |
+| 笔画数对照（**开发期**） | Make Me a Hanzi / hanzi-writer-data 每字 `medians` 条数（PRC 字形） | Arphic Public License，与仓库 GPL-3.0 不兼容；**不进仓库、不随包**，只作开发期对照 | `data/mmh/prc-counts-l1.tsv`（`mmh-reference` 生成） |
+| 首笔对照（**开发期**） | 同上，首笔 `medians` 的几何方向分类 | 同上 | `data/mmh/prc-first-strokes-l1.tsv`（`mmh-reference` 生成） |
+| 首笔修正的规范依据 | 《通用规范汉字笔顺规范》（GF 0023—2020） | 国家标准，只引笔顺事实、不复制文本 | `prc-rules.tsv` 的修正行（来源注明该标准） |
 
 数据集页 <https://data.gov.tw/dataset/5961>，下载 <https://www.cns11643.gov.tw/opendata/Properties.zip> 与
 <https://www.cns11643.gov.tw/opendata/MapingTables.zip>（解到 `data/cns/`）；对照源 `hanzi-writer-data-2.0.1.tgz`（npm registry）解到 `data/mmh/`。
-选型与许可依据见 [docs/design/aux-code.md](../../docs/design/aux-code.md)「原生表：只带笔画」与 wayfinder 的
+对照表再生成：`cargo run -p qingjian-dict-convert -- mmh-reference`（读 `data/mmh/package/` 与字表，写上面两张对照表；`data/` 已 gitignore，表不进仓库）。选型与许可依据见 [docs/design/aux-code.md](../../docs/design/aux-code.md)「原生表：只带笔画」与 wayfinder 的
 t07（数据源查证）/ t09（归一化决议）两张票：**CNS 作字形来源 + 大陆序覆盖表**，MMH 只在开发期做对照。
 
 ## 文件
@@ -23,8 +25,10 @@ t07（数据源查证）/ t09（归一化决议）两张票：**CNS 作字形来
 | 文件 | 内容 |
 | --- | --- |
 | `prc-rules.tsv` | 大陆序覆盖表：`rule`（部件重写）/ `skip`（例外字）/ `char`（整字补录）三类行，格式见文件头 |
-| `tools/dict-convert/testdata/prc-counts-l1.tsv` | 一级字大陆笔画数对照表（抽样对照用；来源 MMH，见上表） |
-| `residual-whitelist.tsv` | 残留差异白名单：抽样里已知且接受的差异（7 字），白名单之外一处不符即验收失败 |
+| `data/mmh/prc-counts-l1.tsv` | 一级字大陆笔画数对照表（开发期对照用；`mmh-reference` 生成，不进仓库） |
+| `data/mmh/prc-first-strokes-l1.tsv` | 一级字大陆首笔几何对照表（同上；类别是几何近似，不是规范口径） |
+| `residual-whitelist.tsv` | 笔画数残留差异白名单：抽样里已知且接受的差异，白名单之外一处不符即验收失败 |
+| `residual-first-strokes.tsv` | 首笔残留差异白名单：首笔对照里已知且接受的差异（规范裁定后保留的 CNS 结构性差异与对照源分笔假阳性） |
 
 ## 生成与验收
 
@@ -33,7 +37,7 @@ t07（数据源查证）/ t09（归一化决议）两张票：**CNS 作字形来
 cargo run --release -p qingjian-dict-convert -- stroke --cns-count data/cns/CNS_stroke.txt --verify
 ```
 
-`--verify` 按「一级字表每 12 字取 1」（291 字）逐字比对大陆笔画数：不符的字必须都在白名单里，否则退出码非 0。
+`--verify` 两路对照（对照表由 `mmh-reference` 生成，**找不到哪张就跳过哪张并提示**）：笔画数按「一级字表每 12 字取 1」（291 字）抽样比对；首笔按一级字表 3,500 字全量比对几何类别（竖撇走向近竖、点捺走向难分这类按近似对接受）。白名单之外一处不符即退出码非 0。
 
 随包时再算成码表（缺省读 `data/generated/codes/stroke.tsv` 与 `data/generated/dict.qj`，写 `data/generated/codes/stroke.qj`）：
 
@@ -45,6 +49,20 @@ cargo run --release -p qingjian-dict-convert -- pack codes
 名称「笔画」、许可 `OFL-1.1`、署名「CNS11643 全字庫筆順資料（中華民國數位發展部）」与数据集页来源，
 可用 `--name` / `--license` / `--attribution` / `--source` / `--data-version` 覆盖（数据版本缺省取笔画表日期）。
 产物随包只带生成结果，原始 zip 与对照源都不入库。
+
+### 验收记录（2026-09-20，首笔修正后）
+
+```
+已读大陆序覆盖表 rules=10 overrides=66
+已生成笔画表 out=data/generated/codes/stroke.tsv entries=7991 dropped_no_sequence=111
+             dropped_inconsistent=3 average_strokes=10.92 size_kb=127
+笔画数对照完成 sampled=291 reference_entries=3500 whitelisted=7 unmatched=0
+首笔对照完成 compared=3435 absent=0 whitelisted=65 unmatched=0
+```
+
+- **首笔**：一级字 3,500 全对（GF 0023—2020）；诞（一级字）原被 CNS 自洽过滤丢字，整字覆盖补录后重新入表（7,991 字）。
+- **笔画数**：抽样（每 12 字取 1）白名单之外 0 条；全量对账 107 → 102，残留是 CNS 与大陆规范的结构性差异（评审已认可留待以后补）。阝 第二笔随规范改为竖后，其家族计数不变。
+- **端到端**：`pack codes` 产 `stroke.qj`（91,773 词有码，诞 的词恢复 17 条），CLI `--aux-table` 可查。
 
 ### 验收记录（2026-09-15）
 

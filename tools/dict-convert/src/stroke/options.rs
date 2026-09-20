@@ -35,7 +35,8 @@ pub struct StrokeOptions {
     #[arg(long)]
     pub output: Option<PathBuf>,
 
-    /// 写完再按抽样对照表比对大陆笔画数，白名单之外一处不符就退出码非 0
+    /// 写完再对照大陆规范：笔画数抽样比对、首笔全量比对，白名单之外一处不符就退出码非 0；
+    /// 对照表找不到的那张跳过并提示（mmh-reference 生成）
     #[arg(long)]
     pub verify: bool,
 
@@ -47,11 +48,19 @@ pub struct StrokeOptions {
     #[arg(long, default_value_t = 12)]
     pub stride: usize,
 
-    /// 对照表（`字<TAB>大陆笔画数`）：抽样字表里每个字都要有
-    #[arg(long, default_value = "tools/dict-convert/testdata/prc-counts-l1.tsv")]
+    /// 笔画数对照表（`字<TAB>大陆笔画数`）：找不到就跳过笔画数对照
+    #[arg(long, default_value = "data/mmh/prc-counts-l1.tsv")]
     pub reference: PathBuf,
 
     /// 残留差异白名单（`字<TAB>本表笔画数<TAB>对照笔画数<TAB>说明`）
     #[arg(long, default_value = "assets/stroke/residual-whitelist.tsv")]
     pub whitelist: PathBuf,
+
+    /// 首笔对照表（`字<TAB>几何类别 h/s/p/n/z/?`）：字表全量比对；找不到就跳过首笔对照
+    #[arg(long, default_value = "data/mmh/prc-first-strokes-l1.tsv")]
+    pub first_reference: PathBuf,
+
+    /// 首笔残留差异白名单（`字<TAB>本表首笔<TAB>对照类别<TAB>说明`）
+    #[arg(long, default_value = "assets/stroke/residual-first-strokes.tsv")]
+    pub first_whitelist: PathBuf,
 }
